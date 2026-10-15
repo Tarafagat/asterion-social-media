@@ -1,0 +1,15 @@
+# Entorno Python
+apps/api/venv/
+__pycache__/
+*.pyc
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/tsconfig.tsbuildinfo
+
+# Datos de proyectos del usuario — nunca van al repo (ver packages/
+# storage/layout.py y la nota en Settings sobre DATA_DIR)
+/data/
+
+.DS_Store

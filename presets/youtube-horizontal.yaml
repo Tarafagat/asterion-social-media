@@ -1,0 +1,11 @@
+# Estilo para clips horizontales pensados para quedarse en YouTube normal
+# (no Shorts) — letra más chica relativa al cuadro, porque un 16:9 se ve
+# típicamente en una pantalla más grande que un celular en vertical.
+font: "Arial"
+font_size: 48
+primary_color: "&H00FFFFFF"
+outline_color: "&H00000000"
+outline_width: 2
+position: bottom
+margin_v: 60
+max_chars_per_line: 42

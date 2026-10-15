@@ -1,0 +1,78 @@
+name: social-clips
+version: 0.1.0
+description: 'Genera clips/shorts a partir de un video largo: transcribe, analiza con IA, recorta y subtitula — empezando por YouTube.'
+author: Asterion
+license: Apache-2.0
+contract_version: asterion.plugin/v1
+language:
+    name: python
+    version: "3.14"
+    venv: apps/api/venv
+    requirements: apps/api/requirements.txt
+start:
+    command: ./apps/api/venv/bin/python
+    args:
+        - apps/api/run.py
+port: 0
+health_path: /health
+config_schema:
+    - key: PROVIDER_BASE_URL
+      label: URL del proveedor de IA
+      type: string
+      default: http://127.0.0.1:11434/v1
+    - key: PROVIDER_MODEL
+      label: Modelo
+      type: string
+      default: llama3.1
+    - key: PROVIDER_TOKEN
+      label: Token del proveedor (si hace falta)
+      type: secret
+    - key: TRANSCRIPTION_MODEL
+      label: Modelo de faster-whisper (tiny/base/small/medium/large-v3)
+      type: string
+      default: small
+    - key: CONTENT_LANGUAGE
+      label: Idioma del contenido (vacío = detectar solo)
+      type: string
+    - key: CONTENT_VOCABULARY
+      label: Vocabulario técnico, separado por comas
+      type: string
+    - key: CONTENT_VIDEO_TYPE
+      label: Tipo de video (programming/talk/podcast/tutorial/generic)
+      type: string
+      default: generic
+    - key: EDIT_FORMATS
+      label: Formatos de salida, separados por comas (vertical,horizontal,square)
+      type: string
+      default: vertical
+    - key: EDIT_SUBTITLE_STYLE
+      label: Estilo de subtítulos (ver presets/)
+      type: string
+      default: shorts
+    - key: EDIT_PAUSE_HANDLING
+      label: Tratamiento de pausas (keep/trim/tighten)
+      type: string
+      default: trim
+    - key: LIMIT_BUDGET_USD
+      label: Presupuesto máximo por proyecto, en USD
+      type: number
+      default: "0"
+    - key: LIMIT_MAX_RETRIES
+      label: Reintentos máximos por etapa
+      type: number
+      default: "2"
+    - key: LIMIT_MAX_STORAGE_GB
+      label: Espacio máximo para datos de proyectos, en GB
+      type: number
+      default: "20"
+    - key: DATA_DIR
+      label: Carpeta de datos (vacío = ./data adentro del plugin)
+      type: string
+api:
+    base_path: /api/v1
+permissions:
+    network:
+        - '*'
+    filesystem:
+        - ./data
+    secrets: true
