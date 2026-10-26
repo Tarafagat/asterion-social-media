@@ -35,6 +35,9 @@ export interface Project {
   width: number | null;
   height: number | null;
   has_audio: boolean | null;
+  has_avatar: boolean;
+  avatar_mode: "pip" | "background";
+  has_dubbed_video: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -51,6 +54,16 @@ export interface Job {
   finished_at: string | null;
 }
 
+export interface ClipSegment {
+  start_ms: number;
+  end_ms: number;
+}
+
+export interface Voice {
+  id: string;
+  label: string;
+}
+
 export interface Clip {
   id: string;
   project_id: string;
@@ -60,9 +73,11 @@ export interface Clip {
   layout: string;
   subtitle_style: string;
   needs_review: boolean;
-  segments: { start_ms: number; end_ms: number }[];
+  segments: ClipSegment[];
   export_path: string | null;
   subtitle_path: string | null;
+  rating: number | null;
+  source_clip_id: string | null;
   created_at: string;
 }
 
@@ -98,8 +113,63 @@ export const api = {
   listJobs: (projectId: string) => request<Job[]>(`/projects/${projectId}/jobs`),
 
   listClips: (projectId: string) => request<Clip[]>(`/projects/${projectId}/clips`),
+  getClip: (clipId: string) => request<Clip>(`/clips/${clipId}`),
   clipFileUrl: (clipId: string) => `${BASE}/clips/${clipId}/file`,
   clipSubtitleUrl: (clipId: string) => `${BASE}/clips/${clipId}/subtitle`,
+  setRating: (clipId: string, rating: number | null) =>
+    request<Clip>(`/clips/${clipId}/rating`, { method: "PATCH", body: JSON.stringify({ rating }) }),
+  editClip: (clipId: string, segments: ClipSegment[], avatarEnabled: boolean) =>
+    request<Job>(`/clips/${clipId}/edit`, {
+      method: "POST",
+      body: JSON.stringify({ segments, avatar_enabled: avatarEnabled }),
+    }),
+
+  waveformUrl: (projectId: string) => `${BASE}/projects/${projectId}/waveform.png`,
+  uploadAvatar: (projectId: string, file: File) => {
+    const form = new FormData();
+    form.append("file", file);
+    return request<Project>(`/projects/${projectId}/avatar`, { method: "POST", body: form });
+  },
+  deleteAvatar: (projectId: string) =>
+    request<Project>(`/projects/${projectId}/avatar`, { method: "DELETE" }),
+  setAvatarMode: (projectId: string, mode: "pip" | "background") =>
+    request<Project>(`/projects/${projectId}/avatar-mode`, {
+      method: "PUT",
+      body: JSON.stringify({ avatar_mode: mode }),
+    }),
+  generateAvatar: (projectId: string, image: File, script: string, voiceId: string, audio?: File) => {
+    const form = new FormData();
+    form.append("image", image);
+    form.append("script", script);
+    form.append("voice_id", voiceId);
+    if (audio) form.append("audio", audio);
+    return request<Job>(`/projects/${projectId}/avatar/generate`, { method: "POST", body: form });
+  },
+  listVoices: () => request<{ voices: Voice[] }>("/projects/avatar/voices"),
+  dubVideo: (
+    projectId: string,
+    script: string,
+    voiceId: string,
+    avatarImage?: File,
+    avatarMode?: "pip" | "background",
+  ) => {
+    const form = new FormData();
+    form.append("script", script);
+    form.append("voice_id", voiceId);
+    if (avatarImage) form.append("avatar_image", avatarImage);
+    if (avatarMode) form.append("avatar_mode", avatarMode);
+    return request<Job>(`/projects/${projectId}/dub`, { method: "POST", body: form });
+  },
+  dubbedVideoUrl: (projectId: string) => `${BASE}/projects/${projectId}/dub/file`,
+  extractTranscript: (projectId: string) => request<Job>(`/projects/${projectId}/transcript`, { method: "POST" }),
+  getTranscript: async (projectId: string): Promise<{ text: string; language: string } | null> => {
+    try {
+      return await request(`/projects/${projectId}/transcript`);
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 404) return null;
+      throw err;
+    }
+  },
 
   getSettings: () => request<SettingsOut>("/settings"),
 };

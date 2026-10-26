@@ -1,0 +1,24 @@
+# Fijado a mano tras probar en vivo en esta máquina (macOS/arm64,
+# Python 3.14) — no "faster-whisper" a secas: la versión de PyAV que
+# instala por default (19.x) rompe contra la API que usa
+# faster_whisper.audio.decode_audio (le pasa metadata_errors= a
+# av.open(), que 19.x ya no acepta). av==18.1.0 es la última que todavía
+# la acepta y tiene wheel para cp314. Si esto vuelve a romper en una
+# versión más nueva de faster-whisper, probar primero si ya arregló la
+# llamada antes de tocar este pin.
+fastapi==0.143.1
+uvicorn[standard]==0.54.0
+python-multipart==0.0.32
+pydantic==2.14.1
+pydantic-settings==2.16.0
+httpx==0.28.1
+PyYAML==6.0.3
+faster-whisper==1.2.1
+av==18.1.0
+
+# Avatar IA: texto -> voz local (sin nube, sin API key) para la etapa de
+# TTS del pipeline de avatar. El motor de animación (SadTalker) vive
+# aparte, en vendor/SadTalker/ con su propio venv Python 3.9 — sus
+# dependencias (torch, numba, dlib, versiones viejas fijadas) no se
+# mezclan con las de este venv. Ver packages/avatar/.
+piper-tts==1.8.0

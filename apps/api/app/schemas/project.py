@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class ProjectCreate(BaseModel):
@@ -16,6 +16,9 @@ class ProjectOut(BaseModel):
     width: int | None = None
     height: int | None = None
     has_audio: bool | None = None
+    has_avatar: bool = False
+    avatar_mode: str = "pip"
+    has_dubbed_video: bool = False
     created_at: str
     updated_at: str
 
@@ -24,4 +27,12 @@ class ProjectOut(BaseModel):
         data = dict(row)
         if data.get("has_audio") is not None:
             data["has_audio"] = bool(data["has_audio"])
+        data["has_avatar"] = bool(data.get("avatar_path"))
+        data.pop("avatar_path", None)
+        data["has_dubbed_video"] = bool(data.get("dubbed_video_path"))
+        data.pop("dubbed_video_path", None)
         return cls.model_validate(data)
+
+
+class AvatarModeIn(BaseModel):
+    avatar_mode: str = Field(pattern="^(pip|background)$")

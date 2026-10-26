@@ -1,0 +1,26 @@
+#!/bin/bash
+# Arranca el backend (venv portable, sin Asterion CLI de por medio) y
+# abre el navegador apenas responde /health. stdout/stderr van a un log
+# en ~/Library/Logs para poder diagnosticar sin terminal.
+set -e
+DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../Resources/project" && pwd)"
+LOG_DIR="$HOME/Library/Logs/AsterionSocialClips"
+mkdir -p "$LOG_DIR"
+LOG_FILE="$LOG_DIR/server.log"
+
+export PATH="$DIR/vendor/bin:$PATH"
+PORT="${ASTERION_PLUGIN_PORT:-8899}"
+
+cd "$DIR"
+"$DIR/apps/api/venv/bin/python" "$DIR/apps/api/run.py" >> "$LOG_FILE" 2>&1 &
+SERVER_PID=$!
+
+for _ in $(seq 1 120); do
+  if curl -s "http://127.0.0.1:$PORT/health" >/dev/null 2>&1; then
+    open "http://127.0.0.1:$PORT"
+    break
+  fi
+  sleep 1
+done
+
+wait "$SERVER_PID"

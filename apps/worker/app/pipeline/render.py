@@ -40,7 +40,15 @@ def _clip_relative_segments(transcript: Transcript, abs_segments: list[dict]) ->
     return out
 
 
-def run(layout: ProjectLayout, source_path, clip: PlannedClip, transcript: Transcript):
+def run(
+    layout: ProjectLayout,
+    source_path,
+    clip: PlannedClip,
+    transcript: Transcript,
+    *,
+    avatar_path=None,
+    avatar_mode: str = "pip",
+):
     render_segments = [RenderSegment(s["start_ms"], s["end_ms"]) for s in clip.segments]
 
     subtitle_path = None
@@ -60,5 +68,7 @@ def run(layout: ProjectLayout, source_path, clip: PlannedClip, transcript: Trans
         out_path,
         layout=clip.layout,
         subtitle_ass=subtitle_path,
+        avatar_path=avatar_path,
+        avatar_mode=avatar_mode,
     )
     return out_path, subtitle_path

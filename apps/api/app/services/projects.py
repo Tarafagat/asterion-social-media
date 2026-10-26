@@ -49,3 +49,18 @@ def latest_job(db_path: Path, project_id: str) -> dict | None:
             (project_id,),
         ).fetchone()
     return dict(row) if row else None
+
+
+def set_avatar(db_path: Path, project_id: str, avatar_path: str | None) -> None:
+    with get_connection(db_path) as conn:
+        conn.execute("UPDATE projects SET avatar_path = ? WHERE id = ?", (avatar_path, project_id))
+
+
+def set_avatar_mode(db_path: Path, project_id: str, avatar_mode: str) -> None:
+    with get_connection(db_path) as conn:
+        conn.execute("UPDATE projects SET avatar_mode = ? WHERE id = ?", (avatar_mode, project_id))
+
+
+def set_dubbed_video_path(db_path: Path, project_id: str, dubbed_video_path: str | None) -> None:
+    with get_connection(db_path) as conn:
+        conn.execute("UPDATE projects SET dubbed_video_path = ? WHERE id = ?", (dubbed_video_path, project_id))

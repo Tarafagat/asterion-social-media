@@ -1,8 +1,18 @@
+import { Link } from "react-router-dom";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { Clip } from "../../api/client";
 import { api } from "../../api/client";
 import VideoPlayer from "../VideoPlayer";
+import StarRating from "../StarRating";
 
 export default function ClipGallery({ clips }: { clips: Clip[] }) {
+  const qc = useQueryClient();
+  const ratingMutation = useMutation({
+    mutationFn: ({ clipId, rating }: { clipId: string; rating: number | null }) =>
+      api.setRating(clipId, rating),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["clips"] }),
+  });
+
   if (clips.length === 0) {
     return (
       <p style={{ color: "rgba(255,255,255,0.5)" }}>
@@ -16,8 +26,8 @@ export default function ClipGallery({ clips }: { clips: Clip[] }) {
     <div
       style={{
         display: "grid",
-        gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))",
-        gap: "1.25rem",
+        gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))",
+        gap: "1.5rem",
       }}
     >
       {clips.map((clip) => (
@@ -27,7 +37,7 @@ export default function ClipGallery({ clips }: { clips: Clip[] }) {
           {clip.reason && (
             <p style={{ margin: 0, fontSize: "0.8rem", color: "rgba(255,255,255,0.5)" }}>{clip.reason}</p>
           )}
-          <div style={{ display: "flex", gap: "0.4rem", marginTop: "0.6rem", flexWrap: "wrap" }}>
+          <div style={{ display: "flex", gap: "0.4rem", marginTop: "0.6rem", flexWrap: "wrap", alignItems: "center" }}>
             <code className="mono">{clip.layout}</code>
             {clip.needs_review && (
               <span
@@ -42,14 +52,31 @@ export default function ClipGallery({ clips }: { clips: Clip[] }) {
                 revisar
               </span>
             )}
+            {clip.source_clip_id && (
+              <span style={{ fontSize: "0.75rem", color: "rgba(255,255,255,0.4)" }}>editado</span>
+            )}
           </div>
-          <a
-            href={api.clipFileUrl(clip.id)}
-            download
-            style={{ display: "inline-block", marginTop: "0.6rem", fontSize: "0.85rem", color: "var(--color-asterion-gold-light)" }}
-          >
-            Descargar .mp4
-          </a>
+          <div style={{ marginTop: "0.5rem" }}>
+            <StarRating
+              value={clip.rating}
+              onChange={(rating) => ratingMutation.mutate({ clipId: clip.id, rating })}
+            />
+          </div>
+          <div style={{ display: "flex", gap: "1rem", marginTop: "0.6rem" }}>
+            <a
+              href={api.clipFileUrl(clip.id)}
+              download
+              style={{ fontSize: "0.85rem", color: "var(--color-asterion-gold-light)" }}
+            >
+              Descargar .mp4
+            </a>
+            <Link
+              to={`/projects/${clip.project_id}/clips/${clip.id}/edit`}
+              style={{ fontSize: "0.85rem", color: "rgba(255,255,255,0.7)" }}
+            >
+              Editar
+            </Link>
+          </div>
         </div>
       ))}
     </div>

@@ -1,0 +1,61 @@
+language "0.1"
+
+# Compila con: asterion plugin from-asterion app.asterion --out .
+# El worker NO es un proceso aparte: el contrato de plugin de Asterion
+# asume un único start.command HTTP, así que corre adentro del mismo
+# proceso FastAPI, como una tarea de fondo (ver apps/api/app/main.py) —
+# nada se pierde del diseño por etapas con checkpoint, solo no se
+# inventa un segundo modelo de despliegue que Asterion no sabe
+# instalar/arrancar/loguear.
+
+Contract.define(
+    name="social-clips",
+    version="0.1.0",
+    description="Genera clips/shorts a partir de un video largo: transcribe, analiza con IA, recorta y subtitula — empezando por YouTube.",
+    author="Asterion",
+    license="Apache-2.0",
+)
+
+# venv/requirements explícitos: el repo trae su propio venv ya armado
+# (ver apps/api/venv) en vez de dejar que 'plugin build' infiera la ruta
+# por convención — este plugin tiene más de un árbol de código
+# (apps/api, apps/worker, packages/*) y la convención por defecto
+# asume un layout más simple.
+Contract.language(name="python", version="3.14", venv="apps/api/venv", requirements="apps/api/requirements.txt")
+
+Contract.start(command="./apps/api/venv/bin/python", args=["apps/api/run.py"], port=0)
+Contract.health_path(path="/health")
+Contract.api(base_path="/api/v1")
+
+# network sin acotar es a propósito, no un descuido: el proveedor de IA
+# (provider_base_url) es justamente lo que el usuario configura en
+# Ajustes, puede ser un endpoint local (ollama/LM Studio en
+# 127.0.0.1:algún-puerto) o uno remoto — no hay una lista fija de hosts
+# que declarar de antemano. 'asterion doctor' lo va a marcar como
+# "declarado sin restricción", correctamente: es la realidad de este
+# plugin, no una garantía que se esté fingiendo.
+Contract.permissions(network=["*"], filesystem=["./data"], secrets=true)
+
+# --- Proveedor de IA (packages/ai) ---
+Contract.config(key="PROVIDER_BASE_URL", label="URL del proveedor de IA", type="string", required=false, default="http://127.0.0.1:11434/v1")
+Contract.config(key="PROVIDER_MODEL", label="Modelo", type="string", required=false, default="llama3.1")
+Contract.config(key="PROVIDER_TOKEN", label="Token del proveedor (si hace falta)", type="secret", required=false)
+
+# --- Transcripción (packages/transcription) ---
+Contract.config(key="TRANSCRIPTION_MODEL", label="Modelo de faster-whisper (tiny/base/small/medium/large-v3)", type="string", required=false, default="small")
+Contract.config(key="CONTENT_LANGUAGE", label="Idioma del contenido (vacío = detectar solo)", type="string", required=false)
+Contract.config(key="CONTENT_VOCABULARY", label="Vocabulario técnico, separado por comas", type="string", required=false)
+Contract.config(key="CONTENT_VIDEO_TYPE", label="Tipo de video (programming/talk/podcast/tutorial/generic)", type="string", required=false, default="generic")
+
+# --- Edición (packages/editorial, packages/subtitles) ---
+Contract.config(key="EDIT_FORMATS", label="Formatos de salida, separados por comas (vertical,horizontal,square)", type="string", required=false, default="vertical")
+Contract.config(key="EDIT_SUBTITLE_STYLE", label="Estilo de subtítulos (ver presets/)", type="string", required=false, default="shorts")
+Contract.config(key="EDIT_PAUSE_HANDLING", label="Tratamiento de pausas (keep/trim/tighten)", type="string", required=false, default="trim")
+
+# --- Límites ---
+Contract.config(key="LIMIT_BUDGET_USD", label="Presupuesto máximo por proyecto, en USD", type="number", required=false, default="0")
+Contract.config(key="LIMIT_MAX_RETRIES", label="Reintentos máximos por etapa", type="number", required=false, default="2")
+Contract.config(key="LIMIT_MAX_STORAGE_GB", label="Espacio máximo para datos de proyectos, en GB", type="number", required=false, default="20")
+
+# --- Dónde viven los datos de cada proyecto (fuera del repo) ---
+Contract.config(key="DATA_DIR", label="Carpeta de datos (vacío = ./data adentro del plugin)", type="string", required=false)

@@ -10,6 +10,9 @@ const STAGE_LABELS: Record<string, string> = {
   plan_edits: "Planificando",
   render: "Renderizando",
   validate: "Validando",
+  tts: "Generando voz",
+  sadtalker: "Animando el avatar",
+  mux: "Reemplazando el audio",
 };
 
 export default function JobProgress({ job }: { job: Job }) {

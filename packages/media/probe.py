@@ -27,6 +27,16 @@ class MediaInfo:
         return self.width / self.height if self.height else 0.0
 
 
+def probe_duration(path: Path) -> float:
+    """Duración de cualquier archivo con ffprobe (audio o video) — a
+    diferencia de `probe()`, no exige una pista de video, así que sirve
+    para un .wav/.mp3 suelto (ver packages/media/dub.py, que necesita la
+    duración de un audio generado por TTS, sin pista de video)."""
+    out = run_ffprobe(["-print_format", "json", "-show_format", str(path)])
+    data = json.loads(out)
+    return float(data.get("format", {}).get("duration") or 0.0)
+
+
 def probe(path: Path) -> MediaInfo:
     out = run_ffprobe(
         [

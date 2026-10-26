@@ -1,0 +1,11 @@
+# Estilo para clips verticales cortos (YouTube Shorts, Reels, TikTok):
+# letra grande y gruesa, pocas palabras por línea — se lee en un celular
+# a pantalla chica y sin sonido, que es como la mayoría los consume.
+font: "Arial Black"
+font_size: 72
+primary_color: "&H00FFFFFF"   # blanco
+outline_color: "&H00000000"   # negro
+outline_width: 4
+position: bottom
+margin_v: 180
+max_chars_per_line: 18

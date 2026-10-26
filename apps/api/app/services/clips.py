@@ -29,3 +29,8 @@ def get_clip(db_path: Path, clip_id: str) -> dict | None:
     clip["segments"] = json.loads(clip["segments_json"])
     del clip["segments_json"]
     return clip
+
+
+def set_rating(db_path: Path, clip_id: str, rating: int | None) -> None:
+    with get_connection(db_path) as conn:
+        conn.execute("UPDATE clips SET rating = ? WHERE id = ?", (rating, clip_id))

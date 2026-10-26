@@ -1,0 +1,25 @@
+# Entorno Python
+apps/api/venv/
+__pycache__/
+*.pyc
+
+# SadTalker es una herramienta externa vendorizada (clon propio + ~2.8GB
+# de checkpoints + venv Python 3.9 aparte) — nunca al repo, se reproduce
+# con vendor/setup_sadtalker.sh. Ver vendor/SADTALKER_SETUP.md.
+vendor/SadTalker/
+
+# Modelos de voz de Piper (~60MB+ cada uno) — se bajan con
+# `python -m piper.download_voices <id> --data-dir models/voices`,
+# ver packages/avatar/tts_piper.py.
+models/voices/
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/tsconfig.tsbuildinfo
+
+# Datos de proyectos del usuario — nunca van al repo (ver packages/
+# storage/layout.py y la nota en Settings sobre DATA_DIR)
+/data/
+
+.DS_Store

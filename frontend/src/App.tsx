@@ -1,6 +1,7 @@
 import { Link, Route, Routes, useLocation } from "react-router-dom";
 import ProjectsPage from "./pages/Projects";
 import ProjectPage from "./pages/Project";
+import ClipEditorPage from "./pages/ClipEditor";
 import SettingsPage from "./pages/Settings";
 
 function Nav() {
@@ -46,6 +47,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<ProjectsPage />} />
           <Route path="/projects/:id" element={<ProjectPage />} />
+          <Route path="/projects/:id/clips/:clipId/edit" element={<ClipEditorPage />} />
           <Route path="/settings" element={<SettingsPage />} />
         </Routes>
       </main>

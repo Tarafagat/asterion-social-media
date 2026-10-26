@@ -52,6 +52,15 @@ class ProjectLayout:
     def exports_dir(self) -> Path:
         return self.root / "exports"
 
+    @property
+    def avatar_source_dir(self) -> Path:
+        # Insumos de "Avatar IA" (foto del presentador, audio subido o
+        # generado por TTS) — separado de avatar_dir (el .mp4 final que
+        # el proyecto usa, ver routes/projects.py) porque estos son
+        # entrada, no resultado, y vale la pena conservarlos para poder
+        # regenerar sin volver a subir la foto.
+        return self.root / "avatar_source"
+
     def ensure(self) -> None:
         """Crea las siete subcarpetas si no existen. Llamarlo es barato e
         idempotente — cada etapa del pipeline lo llama antes de escribir
@@ -66,6 +75,7 @@ class ProjectLayout:
             self.edit_plans_dir,
             self.previews_dir,
             self.exports_dir,
+            self.avatar_source_dir,
         ):
             d.mkdir(parents=True, exist_ok=True)
 

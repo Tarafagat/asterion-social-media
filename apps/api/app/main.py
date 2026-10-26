@@ -39,7 +39,11 @@ async def lifespan(app: FastAPI):
     # Import diferido — ver la misma nota en routes/jobs.py: carga
     # faster_whisper en cascada, no hace falta pagar ese costo si la API
     # arranca y nunca se crea ningún job.
-    from apps.worker.app.runner import start_worker_thread
+    from apps.worker.app.runner import reconcile_orphaned_jobs, start_worker_thread
+
+    reconciled = reconcile_orphaned_jobs(db_path)
+    if reconciled:
+        logger.warning("worker: %d job(s) huérfano(s) de un reinicio anterior marcados como fallidos", reconciled)
 
     thread, stop_event = start_worker_thread(db_path, settings)
     logger.info("API arrancada — datos en %s", settings.data_dir_path())
