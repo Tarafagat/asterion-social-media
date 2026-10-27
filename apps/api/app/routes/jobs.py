@@ -37,6 +37,20 @@ def get_job(job_id: str, db_path: Path = Depends(get_db_path)):
     return job
 
 
+@router.post("/jobs/{job_id}/cancel", response_model=JobOut)
+def cancel_job(job_id: str, db_path: Path = Depends(get_db_path)):
+    from apps.worker.app.runner import JobNotCancellableError, cancel_job as _cancel_job
+
+    job = services.jobs.get_job(db_path, job_id)
+    if not job:
+        raise HTTPException(404, f"no existe el job {job_id!r}")
+    try:
+        _cancel_job(db_path, job_id)
+    except JobNotCancellableError as exc:
+        raise HTTPException(409, str(exc)) from exc
+    return services.jobs.get_job(db_path, job_id)
+
+
 @router.get("/projects/{project_id}/jobs", response_model=list[JobOut])
 def list_jobs(project_id: str, db_path: Path = Depends(get_db_path)):
     return services.jobs.list_jobs_for_project(db_path, project_id)

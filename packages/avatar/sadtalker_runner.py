@@ -106,6 +106,7 @@ def generate_talking_head(
     enhancer: str | None = None,
     timeout: float = 3600.0,
     on_progress: Callable[[int], None] | None = None,
+    on_process_start: Callable[[subprocess.Popen], None] | None = None,
 ) -> Path:
     if not is_installed():
         raise SadTalkerNotInstalledError(
@@ -137,6 +138,11 @@ def generate_talking_head(
     proc = subprocess.Popen(
         args, cwd=SADTALKER_DIR, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1,
     )
+    if on_process_start:
+        # Esta corrida puede tardar horas (CPU, sin GPU NVIDIA) — quien
+        # llama necesita el Popen para poder cancelarla desde afuera, ver
+        # apps/worker/app/runner.py::cancel_job.
+        on_process_start(proc)
     try:
         output = _read_progress_stream(proc, on_progress)
         returncode = proc.wait(timeout=max(0.0, timeout - (time.monotonic() - start)))

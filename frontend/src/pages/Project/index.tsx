@@ -106,6 +106,11 @@ export default function ProjectPage() {
     },
   });
 
+  const cancelJobMutation = useMutation({
+    mutationFn: (jobId: string) => api.cancelJob(jobId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["jobs", projectId] }),
+  });
+
   const dubVideoMutation = useMutation({
     mutationFn: () =>
       api.dubVideo(
@@ -435,7 +440,20 @@ export default function ProjectPage() {
 
       {latestJob && (latestJob.status === "running" || latestJob.status === "queued" || latestJob.status === "failed") && (
         <div style={{ marginBottom: "1.5rem" }}>
-          <JobProgress job={latestJob} />
+          <JobProgress
+            job={latestJob}
+            onCancel={
+              latestJob.status === "running" || latestJob.status === "queued"
+                ? () => cancelJobMutation.mutate(latestJob.id)
+                : undefined
+            }
+            cancelling={cancelJobMutation.isPending}
+          />
+          {cancelJobMutation.isError && (
+            <p style={{ color: "var(--color-danger)", fontSize: "0.85rem", marginTop: "0.5rem" }}>
+              {(cancelJobMutation.error as Error).message}
+            </p>
+          )}
         </div>
       )}
 

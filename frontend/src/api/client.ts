@@ -111,6 +111,7 @@ export const api = {
   createJob: (projectId: string) => request<Job>(`/projects/${projectId}/jobs`, { method: "POST" }),
   getJob: (jobId: string) => request<Job>(`/jobs/${jobId}`),
   listJobs: (projectId: string) => request<Job[]>(`/projects/${projectId}/jobs`),
+  cancelJob: (jobId: string) => request<Job>(`/jobs/${jobId}/cancel`, { method: "POST" }),
 
   listClips: (projectId: string) => request<Clip[]>(`/projects/${projectId}/clips`),
   getClip: (clipId: string) => request<Clip>(`/clips/${clipId}`),

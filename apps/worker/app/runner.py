@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import json
 import logging
+import subprocess
 import threading
 import time
 import uuid
@@ -33,6 +34,41 @@ from .pipeline import analyze, extract_audio, inspect, plan_edits, render, selec
 logger = logging.getLogger("worker")
 
 POLL_INTERVAL_S = 2.0
+
+# Qué subproceso (si hay uno) está corriendo para cada job, y qué jobs
+# se pidió cancelar — leído/escrito tanto desde el hilo del worker como
+# desde el hilo de la API (una request a POST /jobs/{id}/cancel), de ahí
+# el lock. Hoy solo lo puebla SadTalker (packages/avatar/sadtalker_runner.
+# py) porque es la única etapa que puede tardar horas sin GPU — las
+# demás (ffmpeg, Piper) terminan en segundos, cancelarlas a mitad de
+# camino no vale la complejidad de trackearlas también.
+_active_processes: dict[str, subprocess.Popen] = {}
+_cancelled_jobs: set[str] = set()
+_jobs_lock = threading.Lock()
+
+
+class JobNotCancellableError(RuntimeError):
+    pass
+
+
+def _register_process(job_id: str, proc: subprocess.Popen) -> None:
+    with _jobs_lock:
+        _active_processes[job_id] = proc
+
+
+def _unregister_process(job_id: str) -> None:
+    # No borra de _cancelled_jobs acá — el except de process_job todavía
+    # necesita leerlo (_was_cancelled) después de este finally para saber
+    # qué mensaje de error escribir.
+    with _jobs_lock:
+        _active_processes.pop(job_id, None)
+
+
+def _was_cancelled(job_id: str) -> bool:
+    with _jobs_lock:
+        was_cancelled = job_id in _cancelled_jobs
+        _cancelled_jobs.discard(job_id)
+        return was_cancelled
 
 
 def _now_iso() -> str:
@@ -79,6 +115,51 @@ def reconcile_orphaned_jobs(db_path: Path) -> int:
                 (now, row["project_id"]),
             )
     return len(rows)
+
+
+def cancel_job(db_path: Path, job_id: str) -> str:
+    """Llamada desde la ruta de la API (otro hilo, nunca el del worker).
+    Si el job todavía está en cola, alcanza con marcarlo 'failed': el
+    worker nunca lo va a tomar. Si ya está corriendo y tiene un
+    subproceso de SadTalker registrado, se le manda SIGTERM y se deja
+    que el propio `except` de process_job escriba el 'failed' final (ver
+    _was_cancelled) — así la fila nunca se pisa dos veces desde hilos
+    distintos. Devuelve qué pasó, para que la ruta decida el código HTTP."""
+    now = _now_iso()
+    with get_connection(db_path) as conn:
+        row = conn.execute("SELECT status FROM jobs WHERE id = ?", (job_id,)).fetchone()
+        if row is None:
+            raise JobNotCancellableError(f"no existe el job {job_id!r}")
+        status = row["status"]
+
+        if status == "queued":
+            conn.execute(
+                "UPDATE jobs SET status='failed', error=?, finished_at=?, updated_at=? WHERE id=? AND status='queued'",
+                ("Cancelado por el usuario.", now, now, job_id),
+            )
+            return "queued_cancelled"
+
+    if status != "running":
+        raise JobNotCancellableError(f"el job {job_id!r} ya terminó (status={status!r})")
+
+    with _jobs_lock:
+        _cancelled_jobs.add(job_id)
+        proc = _active_processes.get(job_id)
+
+    if proc is not None and proc.poll() is None:
+        proc.terminate()
+        return "running_killed"
+
+    # 'running' en una etapa sin proceso registrado (tts/mux, cuestión de
+    # segundos) — nada que matar, y escribir 'failed' acá serviría de
+    # poco: el hilo del worker sigue corriendo esa etapa y la va a pisar
+    # con su propio _set_job en cuanto termine (en segundos). Mejor decir
+    # que no hay nada que cancelar que fingir uno que se deshace solo.
+    with _jobs_lock:
+        _cancelled_jobs.discard(job_id)
+    raise JobNotCancellableError(
+        f"el job {job_id!r} está en una etapa que termina en segundos (no hay nada que interrumpir) — esperá a que avance"
+    )
 
 
 def _next_queued_job(db_path: Path) -> dict | None:
@@ -273,14 +354,24 @@ def _process_avatar_generate_job(db_path: Path, settings: Settings, job: dict) -
             # domina el tiempo real) se reescala a ese tramo.
             _set_job(db_path, job_id, progress_pct=67 + round(pct * 0.33))
 
-        sadtalker_runner.generate_talking_head(image_path, audio_path, out_video, on_progress=_on_sadtalker_progress)
+        try:
+            sadtalker_runner.generate_talking_head(
+                image_path, audio_path, out_video,
+                on_progress=_on_sadtalker_progress,
+                on_process_start=lambda proc: _register_process(job_id, proc),
+            )
+        finally:
+            _unregister_process(job_id)
 
         _set_project(db_path, project_id, avatar_path=str(out_video))
         _set_job(db_path, job_id, stage="done", status="done", progress_pct=None, finished_at=_now_iso())
 
     except Exception as exc:
-        logger.exception("avatar IA del proyecto %s falló", project_id)
-        _set_job(db_path, job_id, status="failed", error=str(exc), finished_at=_now_iso())
+        if _was_cancelled(job_id):
+            _set_job(db_path, job_id, status="failed", error="Cancelado por el usuario.", finished_at=_now_iso())
+        else:
+            logger.exception("avatar IA del proyecto %s falló", project_id)
+            _set_job(db_path, job_id, status="failed", error=str(exc), finished_at=_now_iso())
 
 
 def _process_transcribe_only_job(db_path: Path, settings: Settings, job: dict) -> None:
@@ -366,9 +457,14 @@ def _process_dub_video_job(db_path: Path, settings: Settings, job: dict) -> None
                 _set_job(db_path, job_id, progress_pct=40 + round(pct * 0.35))
 
             dub_avatar_path = layout.avatar_source_dir / f"{job_id}_dub_avatar.mp4"
-            sadtalker_runner.generate_talking_head(
-                Path(avatar_image_path), audio_path, dub_avatar_path, on_progress=_on_sadtalker_progress
-            )
+            try:
+                sadtalker_runner.generate_talking_head(
+                    Path(avatar_image_path), audio_path, dub_avatar_path,
+                    on_progress=_on_sadtalker_progress,
+                    on_process_start=lambda proc: _register_process(job_id, proc),
+                )
+            finally:
+                _unregister_process(job_id)
 
         _set_job(db_path, job_id, stage="mux", progress_pct=None)
         out_video = layout.exports_dir / f"{job_id}_dub.mp4"
@@ -378,8 +474,11 @@ def _process_dub_video_job(db_path: Path, settings: Settings, job: dict) -> None
         _set_job(db_path, job_id, stage="done", status="done", progress_pct=None, finished_at=_now_iso())
 
     except Exception as exc:
-        logger.exception("dub de video del proyecto %s falló", project_id)
-        _set_job(db_path, job_id, status="failed", error=str(exc), finished_at=_now_iso())
+        if _was_cancelled(job_id):
+            _set_job(db_path, job_id, status="failed", error="Cancelado por el usuario.", finished_at=_now_iso())
+        else:
+            logger.exception("dub de video del proyecto %s falló", project_id)
+            _set_job(db_path, job_id, status="failed", error=str(exc), finished_at=_now_iso())
 
 
 def process_job(db_path: Path, settings: Settings, job: dict) -> None:

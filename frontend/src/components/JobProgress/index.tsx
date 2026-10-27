@@ -15,14 +15,43 @@ const STAGE_LABELS: Record<string, string> = {
   mux: "Reemplazando el audio",
 };
 
-export default function JobProgress({ job }: { job: Job }) {
+export default function JobProgress({
+  job,
+  onCancel,
+  cancelling,
+}: {
+  job: Job;
+  onCancel?: () => void;
+  cancelling?: boolean;
+}) {
   const failed = job.status === "failed";
   const done = job.status === "done";
   return (
     <div className="card">
-      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.6rem" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.6rem" }}>
         <strong>{failed ? "Falló" : done ? "Listo" : STAGE_LABELS[job.stage] ?? job.stage}</strong>
-        <span style={{ color: "rgba(255,255,255,0.5)", fontSize: "0.85rem" }}>{job.progress_pct}%</span>
+        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+          <span style={{ color: "rgba(255,255,255,0.5)", fontSize: "0.85rem" }}>{job.progress_pct}%</span>
+          {onCancel && (
+            <button
+              type="button"
+              onClick={onCancel}
+              disabled={cancelling}
+              style={{
+                background: "none",
+                border: "1px solid var(--color-danger)",
+                color: "var(--color-danger)",
+                borderRadius: 6,
+                padding: "0.15rem 0.6rem",
+                fontSize: "0.8rem",
+                cursor: cancelling ? "default" : "pointer",
+                opacity: cancelling ? 0.6 : 1,
+              }}
+            >
+              {cancelling ? "Cancelando…" : "Cancelar"}
+            </button>
+          )}
+        </div>
       </div>
       <div
         style={{
