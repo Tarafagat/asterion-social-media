@@ -13,6 +13,7 @@ from packages.storage import get_connection
 STAGE_ORDER_BY_KIND: dict[str, list[str]] = {
     "pipeline": ["queued", "inspect", "extract_audio", "transcribe", "analyze", "select_clips", "plan_edits", "render", "validate"],
     "clip_edit": ["queued", "render", "validate"],
+    "clip_create": ["queued", "render", "validate"],
     "avatar_generate": ["queued", "tts", "sadtalker", "done"],
     "dub_video": ["queued", "tts", "mux", "done"],
     "dub_video_avatar": ["queued", "tts", "sadtalker", "mux", "done"],

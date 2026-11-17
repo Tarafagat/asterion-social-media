@@ -7,7 +7,7 @@ from fastapi.responses import FileResponse
 
 from .. import services
 from ..deps import get_db_path
-from ..schemas import ClipOut, EditClipIn, JobOut, RatingIn
+from ..schemas import ClipOut, CreateClipIn, EditClipIn, JobOut, RatingIn
 
 router = APIRouter(tags=["clips"])
 
@@ -15,6 +15,31 @@ router = APIRouter(tags=["clips"])
 @router.get("/projects/{project_id}/clips", response_model=list[ClipOut])
 def list_clips(project_id: str, db_path: Path = Depends(get_db_path)):
     return [ClipOut.from_row(r) for r in services.clips.list_clips_for_project(db_path, project_id)]
+
+
+@router.post("/projects/{project_id}/clips", response_model=JobOut, status_code=201)
+def create_clip(project_id: str, body: CreateClipIn, db_path: Path = Depends(get_db_path)):
+    """Crea un clip a mano desde el editor: el usuario eligió los
+    segmentos, el formato y si quemar subtítulos — nada de IA. Encola un
+    job de render (rápido: es un trim/scale puro) y devuelve el job para
+    seguir su progreso, igual que el resto del flujo."""
+    from apps.worker.app.runner import create_manual_clip_job
+
+    project = services.projects.get_project(db_path, project_id)
+    if not project:
+        raise HTTPException(404, f"no existe el proyecto {project_id!r}")
+    if not project.get("source_filename"):
+        raise HTTPException(400, "este proyecto todavía no tiene ningún video subido")
+    if not body.segments:
+        raise HTTPException(400, "un clip necesita al menos un segmento")
+
+    segments = [{"start_ms": s.start_ms, "end_ms": s.end_ms} for s in body.segments]
+    job_id = create_manual_clip_job(
+        db_path, project_id, segments,
+        layout=body.layout, subtitle_style=body.subtitle_style, title=body.title,
+        subtitles=body.subtitles, avatar_enabled=body.avatar_enabled,
+    )
+    return services.jobs.get_job(db_path, job_id)
 
 
 @router.get("/clips/{clip_id}", response_model=ClipOut)

@@ -179,6 +179,10 @@ def render_clip(
         "-crf", "20",
         "-c:a", "aac",
         "-b:a", "160k",
+        # +faststart mueve el índice (moov atom) al principio del archivo:
+        # el .mp4 empieza a reproducirse en la galería/editor apenas llegan
+        # los primeros bytes, sin esperar la descarga completa.
+        "-movflags", "+faststart",
         str(out_path),
     ]
     run_ffmpeg(args, timeout=1800.0)  # un render de varios minutos de fuente puede tardar

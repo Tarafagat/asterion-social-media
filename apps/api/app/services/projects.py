@@ -37,6 +37,26 @@ def set_source_filename(db_path: Path, project_id: str, filename: str) -> None:
         )
 
 
+def set_media_info(
+    db_path: Path,
+    project_id: str,
+    *,
+    duration_s: float,
+    width: int,
+    height: int,
+    has_audio: bool,
+) -> None:
+    """Guarda lo que ffprobe sacó del video fuente (al subirlo). El worker
+    también escribe estos campos cuando corre su etapa 'inspect', con los
+    mismos nombres de columna — acá se setean antes, para que el editor
+    manual tenga la duración sin esperar ningún job."""
+    with get_connection(db_path) as conn:
+        conn.execute(
+            "UPDATE projects SET duration_s = ?, width = ?, height = ?, has_audio = ? WHERE id = ?",
+            (duration_s, width, height, 1 if has_audio else 0, project_id),
+        )
+
+
 def delete_project(db_path: Path, project_id: str) -> None:
     with get_connection(db_path) as conn:
         conn.execute("DELETE FROM projects WHERE id = ?", (project_id,))

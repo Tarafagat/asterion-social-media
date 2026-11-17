@@ -47,6 +47,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<ProjectsPage />} />
           <Route path="/projects/:id" element={<ProjectPage />} />
+          <Route path="/projects/:id/editor" element={<ClipEditorPage />} />
           <Route path="/projects/:id/clips/:clipId/edit" element={<ClipEditorPage />} />
           <Route path="/settings" element={<SettingsPage />} />
         </Routes>

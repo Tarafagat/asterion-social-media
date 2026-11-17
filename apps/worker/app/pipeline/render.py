@@ -44,22 +44,28 @@ def run(
     layout: ProjectLayout,
     source_path,
     clip: PlannedClip,
-    transcript: Transcript,
+    transcript: Transcript | None = None,
     *,
     avatar_path=None,
     avatar_mode: str = "pip",
 ):
     render_segments = [RenderSegment(s["start_ms"], s["end_ms"]) for s in clip.segments]
 
+    # `transcript=None` = render SIN subtítulos (el caso por defecto del
+    # editor manual: recortar+encuadrar es un trim/scale puro, no hace
+    # falta transcribir el video). El pipeline completo y la re-edición de
+    # un clip sí pasan un transcript, y ahí se queman los subtítulos como
+    # siempre.
     subtitle_path = None
-    clip_segments = _clip_relative_segments(transcript, clip.segments)
-    if clip_segments:
-        style = load_style(clip.subtitle_style)
-        video_w, video_h = LAYOUT_DIMENSIONS.get(clip.layout, LAYOUT_DIMENSIONS["vertical"])
-        subtitle_path = write_ass(
-            clip_segments, style, layout.exports_dir / f"{clip.id}.ass",
-            video_w=video_w, video_h=video_h,
-        )
+    if transcript is not None:
+        clip_segments = _clip_relative_segments(transcript, clip.segments)
+        if clip_segments:
+            style = load_style(clip.subtitle_style)
+            video_w, video_h = LAYOUT_DIMENSIONS.get(clip.layout, LAYOUT_DIMENSIONS["vertical"])
+            subtitle_path = write_ass(
+                clip_segments, style, layout.exports_dir / f"{clip.id}.ass",
+                video_w=video_w, video_h=video_h,
+            )
 
     out_path = layout.clip_export(clip.id)
     render_clip(

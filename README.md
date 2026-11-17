@@ -1,9 +1,17 @@
 # Asterion Social Clips
 
-Genera clips/shorts a partir de un video largo: transcribe, analiza con IA,
-recorta, encuadra y subtitula. Empieza por el caso más simple (un video →
-una galería de shorts verticales) con un diseño pensado para sumar otras
-redes y formatos después, no solo YouTube.
+Editor de video para armar clips/shorts a partir de un video largo: subes
+el video, eliges los cortes a mano en el editor (reproduces, marcas inicio
+y fin de cada tramo, juntas varios tramos en un mismo clip), eliges el
+formato (vertical 9:16, horizontal 16:9 o cuadrado 1:1) y renderizas —
+recorte + encuadre con fondo difuminado, y subtítulos opcionales. Pensado
+para sumar otras redes y formatos después, no solo YouTube.
+
+Los clips se crean desde el **editor** (botón "Abrir editor" en el
+proyecto), no con una generación automática: tú decides qué momentos salen.
+El pipeline con IA (transcribir → analizar → proponer clips) sigue existiendo
+en el backend, pero el camino principal es manual y rápido: un clip es un
+trim/scale puro de ffmpeg, sin transcribir nada salvo que pidas subtítulos.
 
 Se instala y corre como **un plugin de Asterion** — nunca como una app de
 Electron aparte. Reusa todo lo que `asterion-core` ya sabe hacer con un
@@ -74,9 +82,13 @@ encuadre vertical 1080×1920 + subtítulos quemados con el preset
 `shorts.yaml`) → validar. Confirmado con un frame extraído del .mp4
 resultante (el subtítulo se ve quemado, con la tipografía/color/posición
 del preset) y con la transcripción forzando `CONTENT_LANGUAGE=en`
-contra el texto real dicho por `say` (coincide exacto). UI verificada
-con Playwright contra el backend real: crear proyecto → subir video →
-"Crear clips" → ver la galería con el clip reproducible.
+contra el texto real dicho por `say` (coincide exacto). Editor manual
+verificado con Playwright contra el backend real: subir video (se
+inspecciona al instante con ffprobe) → "Abrir editor" → marcar segmentos
+→ elegir formato → "Crear clip" → render (vertical 1080×1920 y horizontal
+1920×1080 confirmados con ffprobe) → galería con el clip reproducible. El
+video fuente se sirve con soporte de `Range` (HTTP 206) para poder
+scrubbearlo en el editor.
 
 Instalado, compilado y arrancado por el camino real de Asterion
 (`plugin install --link` → `plugin build` → `plugin start`) — no solo

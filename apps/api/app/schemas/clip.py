@@ -38,3 +38,14 @@ class EditSegmentIn(BaseModel):
 class EditClipIn(BaseModel):
     segments: list[EditSegmentIn]
     avatar_enabled: bool = False
+
+
+class CreateClipIn(BaseModel):
+    """Crear un clip a mano desde el editor, sin pasar por la IA."""
+
+    segments: list[EditSegmentIn]
+    layout: str = Field(default="vertical", pattern="^(vertical|horizontal|square)$")
+    subtitle_style: str | None = None
+    title: str | None = None
+    subtitles: bool = False
+    avatar_enabled: bool = False

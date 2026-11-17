@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../api/client";
 import JobProgress from "../../components/JobProgress";
@@ -70,11 +70,6 @@ export default function ProjectPage() {
 
   const extractTranscriptMutation = useMutation({
     mutationFn: () => api.extractTranscript(projectId),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["jobs", projectId] }),
-  });
-
-  const createJobMutation = useMutation({
-    mutationFn: () => api.createJob(projectId),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["jobs", projectId] }),
   });
 
@@ -156,13 +151,18 @@ export default function ProjectPage() {
       )}
 
       {project.source_filename && (
-        <div className="card" style={{ marginBottom: "1.5rem", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div
+          className="card"
+          style={{ marginBottom: "1.5rem", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "0.75rem" }}
+        >
           <span style={{ color: "rgba(255,255,255,0.7)" }}>
-            {clips && clips.length > 0 ? `${clips.length} clip(s) generado(s)` : "Listo para procesar"}
+            {clips && clips.length > 0
+              ? `${clips.length} clip(s) — abre el editor para crear otro`
+              : "Abre el editor para crear tu primer clip — tú eliges los cortes, el formato y el encuadre"}
           </span>
-          <button className="btn-gold" disabled={jobRunning} onClick={() => createJobMutation.mutate()}>
-            {jobRunning ? "Procesando…" : "Crear clips"}
-          </button>
+          <Link to={`/projects/${projectId}/editor`} className="btn-gold" style={{ textDecoration: "none" }}>
+            ✂️ Abrir editor
+          </Link>
         </div>
       )}
 

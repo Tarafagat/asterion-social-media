@@ -274,7 +274,15 @@ def _process_clip_edit_job(db_path: Path, settings: Settings, job: dict) -> None
 
     try:
         _set_job(db_path, job_id, stage="render", status="running", started_at=_now_iso())
-        transcript = Transcript.from_dict(json.loads(layout.transcript_json().read_text(encoding="utf-8")))
+        # El transcript puede no existir: un clip creado a mano en el editor
+        # (sin haber corrido IA ni 'Extraer texto') no tiene transcript.json.
+        # En ese caso se re-renderiza sin subtítulos, en vez de fallar.
+        checkpoint = layout.transcript_json()
+        transcript = (
+            Transcript.from_dict(json.loads(checkpoint.read_text(encoding="utf-8")))
+            if checkpoint.exists()
+            else None
+        )
 
         new_clip = PlannedClip(
             id=str(uuid.uuid4()),
@@ -311,6 +319,81 @@ def _process_clip_edit_job(db_path: Path, settings: Settings, job: dict) -> None
 
     except Exception as exc:
         logger.exception("job de edición %s falló", job_id)
+        _set_job(db_path, job_id, status="failed", error=str(exc), finished_at=_now_iso())
+
+
+def _process_manual_clip_job(db_path: Path, settings: Settings, job: dict) -> None:
+    """Crea un clip NUEVO a partir de los segmentos que el usuario marcó a
+    mano en el editor — sin IA, sin transcribir ni analizar nada. Es el
+    camino rápido: recortar+encuadrar es un trim/scale puro de ffmpeg.
+
+    Subtítulos OPCIONALES: solo si el payload pide `subtitles` y el
+    proyecto ya tiene un transcript.json (de haber corrido 'Extraer texto
+    del video' antes). Sin eso, se renderiza sin subtítulos — no se fuerza
+    una transcripción lenta solo para recortar un clip."""
+    job_id, project_id = job["id"], job["project_id"]
+    payload = json.loads(job["payload"])
+    segments = payload["segments"]
+    layout_name = payload.get("layout") or "vertical"
+    subtitle_style = payload.get("subtitle_style") or settings.edit_subtitle_style
+    title = payload.get("title") or "Clip"
+    want_subtitles = bool(payload.get("subtitles"))
+    use_avatar = bool(payload.get("avatar_enabled"))
+
+    with get_connection(db_path) as conn:
+        project = dict(conn.execute("SELECT * FROM projects WHERE id = ?", (project_id,)).fetchone())
+
+    layout = ProjectLayout(settings.data_dir_path(), project_id)
+    layout.ensure()
+    source_path = layout.source_video(project["source_filename"])
+
+    try:
+        _set_job(db_path, job_id, stage="render", status="running", started_at=_now_iso())
+
+        transcript = None
+        if want_subtitles:
+            checkpoint = layout.transcript_json()
+            if not checkpoint.exists():
+                raise ValueError(
+                    "para quemar subtítulos hay que extraer el texto del video primero "
+                    "('Extraer texto del video' en el proyecto)"
+                )
+            transcript = Transcript.from_dict(json.loads(checkpoint.read_text(encoding="utf-8")))
+
+        new_clip = PlannedClip(
+            id=str(uuid.uuid4()),
+            title=title,
+            segments=segments,
+            reason="",
+            layout=layout_name,
+            subtitle_style=subtitle_style,
+            needs_review=False,  # es una edición deliberada del usuario, no una propuesta de IA
+        )
+        avatar_kwargs = _avatar_kwargs(project) if use_avatar else {"avatar_path": None, "avatar_mode": "pip"}
+        export_path, subtitle_path = render.run(layout, source_path, new_clip, transcript, **avatar_kwargs)
+
+        _set_job(db_path, job_id, stage="validate")
+        result = validate.run(new_clip, export_path)
+        with get_connection(db_path) as conn:
+            conn.execute(
+                """INSERT INTO clips
+                   (id, project_id, job_id, title, reason, layout, subtitle_style,
+                    needs_review, segments_json, export_path, subtitle_path)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    new_clip.id, project_id, job_id, new_clip.title, new_clip.reason, new_clip.layout,
+                    new_clip.subtitle_style, 0 if result.ok else 1,
+                    json.dumps(new_clip.segments),
+                    str(export_path), str(subtitle_path) if subtitle_path else None,
+                ),
+            )
+        if not result.ok:
+            logger.warning("clip manual %s con problemas de validación: %s", new_clip.id, result.issues)
+
+        _set_job(db_path, job_id, status="done", finished_at=_now_iso())
+
+    except Exception as exc:
+        logger.exception("clip manual del proyecto %s falló", project_id)
         _set_job(db_path, job_id, status="failed", error=str(exc), finished_at=_now_iso())
 
 
@@ -485,6 +568,8 @@ def process_job(db_path: Path, settings: Settings, job: dict) -> None:
     kind = job.get("kind")
     if kind == "clip_edit":
         _process_clip_edit_job(db_path, settings, job)
+    elif kind == "clip_create":
+        _process_manual_clip_job(db_path, settings, job)
     elif kind == "avatar_generate":
         _process_avatar_generate_job(db_path, settings, job)
     elif kind in ("dub_video", "dub_video_avatar"):
@@ -512,6 +597,30 @@ def create_clip_edit_job(db_path: Path, project_id: str, clip_id: str, segments:
     with get_connection(db_path) as conn:
         conn.execute(
             "INSERT INTO jobs (id, project_id, kind, payload, stage, status) VALUES (?, ?, 'clip_edit', ?, 'render', 'queued')",
+            (job_id, project_id, payload),
+        )
+    return job_id
+
+
+def create_manual_clip_job(
+    db_path: Path,
+    project_id: str,
+    segments: list[dict],
+    *,
+    layout: str = "vertical",
+    subtitle_style: str | None = None,
+    title: str | None = None,
+    subtitles: bool = False,
+    avatar_enabled: bool = False,
+) -> str:
+    job_id = str(uuid.uuid4())
+    payload = json.dumps({
+        "segments": segments, "layout": layout, "subtitle_style": subtitle_style,
+        "title": title, "subtitles": subtitles, "avatar_enabled": avatar_enabled,
+    })
+    with get_connection(db_path) as conn:
+        conn.execute(
+            "INSERT INTO jobs (id, project_id, kind, payload, stage, status) VALUES (?, ?, 'clip_create', ?, 'queued', 'queued')",
             (job_id, project_id, payload),
         )
     return job_id

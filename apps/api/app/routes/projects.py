@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 
 from packages.config import Settings
-from packages.media import generate_waveform_png
+from packages.media import generate_waveform_png, probe
 from packages.storage import ProjectLayout
 from packages.transcription import Transcript
 
@@ -67,6 +67,23 @@ async def upload_source(
             out.write(chunk)
 
     services.projects.set_source_filename(db_path, project_id, file.filename)
+
+    # Inspeccionar ACÁ, al subir (ffprobe, instantáneo) — así el editor
+    # tiene la duración/resolución apenas se sube el video, sin esperar a
+    # que corra ningún job. Antes esto solo se sabía después de 'Crear
+    # clips'; con el editor manual como camino principal, hace falta ya.
+    # Si el archivo no se puede inspeccionar, se guarda igual y el editor
+    # cae a la duración que reporte el propio <video> del navegador.
+    try:
+        info = probe(dest)
+        services.projects.set_media_info(
+            db_path, project_id,
+            duration_s=info.duration_s, width=info.width, height=info.height,
+            has_audio=info.has_audio,
+        )
+    except Exception:  # noqa: BLE001 — inspección best-effort, nunca tumba la subida
+        pass
+
     return ProjectOut.from_row(services.projects.get_project(db_path, project_id))
 
 
@@ -106,6 +123,30 @@ def get_transcript(
 
     transcript = Transcript.from_dict(json.loads(checkpoint.read_text(encoding="utf-8")))
     return {"text": transcript.full_text(), "language": transcript.language}
+
+
+@router.get("/{project_id}/source/file")
+def get_source_file(
+    project_id: str,
+    db_path: Path = Depends(get_db_path),
+    settings: Settings = Depends(get_settings_dep),
+):
+    """Sirve el video fuente tal cual, para reproducirlo/scrubbearlo en el
+    editor. `FileResponse` ya responde peticiones con `Range` (HTTP 206),
+    que es lo que usa el <video> del navegador para saltar a un segundo
+    cualquiera sin bajar el archivo entero — imprescindible para marcar
+    inicio/fin de un clip arrastrando la línea de tiempo."""
+    project = services.projects.get_project(db_path, project_id)
+    if not project:
+        raise HTTPException(404, f"no existe el proyecto {project_id!r}")
+    if not project.get("source_filename"):
+        raise HTTPException(404, "este proyecto todavía no tiene ningún video subido")
+
+    layout = ProjectLayout(settings.data_dir_path(), project_id)
+    source_path = layout.source_video(project["source_filename"])
+    if not source_path.exists():
+        raise HTTPException(404, "el video fuente ya no está en disco")
+    return FileResponse(source_path, media_type="video/mp4", filename=source_path.name)
 
 
 @router.get("/{project_id}/waveform.png")

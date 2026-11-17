@@ -16,8 +16,8 @@ export default function ClipGallery({ clips }: { clips: Clip[] }) {
   if (clips.length === 0) {
     return (
       <p style={{ color: "rgba(255,255,255,0.5)" }}>
-        Todavía no hay ningún clip — ninguno de los momentos detectados llegó a la duración
-        mínima, o el job no terminó todavía.
+        Todavía no hay ningún clip — abre el editor para crear el primero, o espera a que
+        termine de renderizarse el que acabas de crear.
       </p>
     );
   }

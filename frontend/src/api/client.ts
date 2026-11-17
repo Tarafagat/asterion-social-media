@@ -115,6 +115,18 @@ export const api = {
 
   listClips: (projectId: string) => request<Clip[]>(`/projects/${projectId}/clips`),
   getClip: (clipId: string) => request<Clip>(`/clips/${clipId}`),
+  sourceFileUrl: (projectId: string) => `${BASE}/projects/${projectId}/source/file`,
+  createClip: (
+    projectId: string,
+    body: {
+      segments: ClipSegment[];
+      layout: string;
+      subtitle_style?: string | null;
+      title?: string | null;
+      subtitles?: boolean;
+      avatar_enabled?: boolean;
+    },
+  ) => request<Job>(`/projects/${projectId}/clips`, { method: "POST", body: JSON.stringify(body) }),
   clipFileUrl: (clipId: string) => `${BASE}/clips/${clipId}/file`,
   clipSubtitleUrl: (clipId: string) => `${BASE}/clips/${clipId}/subtitle`,
   setRating: (clipId: string, rating: number | null) =>
