@@ -23,7 +23,7 @@ Contract.define(
 # asume un layout más simple.
 Contract.language(name="python", version="3.14", venv="apps/api/venv", requirements="apps/api/requirements.txt")
 
-Contract.start(command="./apps/api/venv/bin/python", args=["apps/api/run.py"], port=0)
+Contract.start(command="./apps/api/venv/bin/python", args=["apps/api/run.py"], port=6767)
 Contract.health_path(path="/health")
 Contract.api(base_path="/api/v1")
 

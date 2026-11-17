@@ -13,7 +13,7 @@ start:
     command: ./apps/api/venv/bin/python
     args:
         - apps/api/run.py
-port: 0
+port: 6767
 health_path: /health
 config_schema:
     - key: PROVIDER_BASE_URL
