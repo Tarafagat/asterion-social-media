@@ -8,6 +8,11 @@ __pycache__/
 # con vendor/setup_sadtalker.sh. Ver vendor/SADTALKER_SETUP.md.
 vendor/SadTalker/
 
+# Wav2Lip (motor de avatar rápido en CPU) — clon + venv + checkpoints
+# (~0.5GB), nunca al repo. Se reproduce con vendor/setup_wav2lip_linux.sh.
+# Ver vendor/WAV2LIP_SETUP.md.
+vendor/Wav2Lip/
+
 # Modelos de voz de Piper (~60MB+ cada uno) — se bajan con
 # `python -m piper.download_voices <id> --data-dir models/voices`,
 # ver packages/avatar/tts_piper.py.

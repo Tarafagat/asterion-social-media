@@ -24,7 +24,7 @@ from pathlib import Path
 from packages.config import Settings
 from packages.storage import ProjectLayout, get_connection
 
-from packages.avatar import sadtalker_runner, tts_piper
+from packages.avatar import avatar_engine, tts_piper
 from packages.editorial import PlannedClip
 from packages.media import replace_audio
 from packages.transcription import Transcript
@@ -38,8 +38,8 @@ POLL_INTERVAL_S = 2.0
 # Qué subproceso (si hay uno) está corriendo para cada job, y qué jobs
 # se pidió cancelar — leído/escrito tanto desde el hilo del worker como
 # desde el hilo de la API (una request a POST /jobs/{id}/cancel), de ahí
-# el lock. Hoy solo lo puebla SadTalker (packages/avatar/sadtalker_runner.
-# py) porque es la única etapa que puede tardar horas sin GPU — las
+# el lock. Hoy lo pueblan los motores de avatar (SadTalker/Wav2Lip, en
+# packages/avatar) porque son las etapas que más tardan sin GPU — las
 # demás (ffmpeg, Piper) terminan en segundos, cancelarlas a mitad de
 # camino no vale la complejidad de trackearlas también.
 _active_processes: dict[str, subprocess.Popen] = {}
@@ -438,7 +438,7 @@ def _process_avatar_generate_job(db_path: Path, settings: Settings, job: dict) -
             _set_job(db_path, job_id, progress_pct=67 + round(pct * 0.33))
 
         try:
-            sadtalker_runner.generate_talking_head(
+            avatar_engine(settings.avatar_engine).generate_talking_head(
                 image_path, audio_path, out_video,
                 on_progress=_on_sadtalker_progress,
                 on_process_start=lambda proc: _register_process(job_id, proc),
@@ -541,7 +541,7 @@ def _process_dub_video_job(db_path: Path, settings: Settings, job: dict) -> None
 
             dub_avatar_path = layout.avatar_source_dir / f"{job_id}_dub_avatar.mp4"
             try:
-                sadtalker_runner.generate_talking_head(
+                avatar_engine(settings.avatar_engine).generate_talking_head(
                     Path(avatar_image_path), audio_path, dub_avatar_path,
                     on_progress=_on_sadtalker_progress,
                     on_process_start=lambda proc: _register_process(job_id, proc),

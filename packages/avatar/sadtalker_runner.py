@@ -40,6 +40,9 @@ import uuid
 from pathlib import Path
 from typing import Callable
 
+ENGINE_NAME = "SadTalker"
+SETUP_DOC = "vendor/SADTALKER_SETUP.md"
+
 SADTALKER_DIR = Path(__file__).resolve().parent.parent.parent / "vendor" / "SadTalker"
 _SADTALKER_VENV = SADTALKER_DIR / "venv"
 # venv/bin/python en macOS/Linux; en Windows una distribución de

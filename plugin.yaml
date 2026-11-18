@@ -60,6 +60,10 @@ config_schema:
       label: Tratamiento de pausas (keep/trim/tighten)
       type: string
       default: trim
+    - key: AVATAR_ENGINE
+      label: 'Motor del avatar: wav2lip (rápido en CPU, solo labios) o sadtalker (anima la cabeza, lento en CPU)'
+      type: string
+      default: wav2lip
     - key: LIMIT_BUDGET_USD
       label: Presupuesto máximo por proyecto, en USD
       type: number

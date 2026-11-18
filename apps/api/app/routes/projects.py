@@ -249,16 +249,17 @@ async def generate_avatar(
     audio. El .mp4 resultante queda como el avatar del proyecto, mismo
     lugar que un avatar grabado subido a mano (ver upload_avatar) — todo
     el compositing pip/fondo de abajo es el mismo sin cambios."""
-    from packages.avatar import sadtalker_runner
+    from packages.avatar import avatar_engine
     from apps.worker.app.runner import create_avatar_generate_job
 
     project = services.projects.get_project(db_path, project_id)
     if not project:
         raise HTTPException(404, f"no existe el proyecto {project_id!r}")
-    if not sadtalker_runner.is_installed():
-        raise HTTPException(503, "SadTalker no está instalado en este servidor — ver vendor/SADTALKER_SETUP.md")
+    engine = avatar_engine(settings.avatar_engine)
+    if not engine.is_installed():
+        raise HTTPException(503, f"El motor de avatar ({engine.ENGINE_NAME}) no está instalado en este servidor — ver {engine.SETUP_DOC}")
     if not audio and not (script and script.strip()):
-        raise HTTPException(400, "mandá un guion (para generar la voz) o un audio propio")
+        raise HTTPException(400, "manda un guion (para generar la voz) o un audio propio")
 
     layout = ProjectLayout(settings.data_dir_path(), project_id)
     layout.ensure()
@@ -300,7 +301,7 @@ async def dub_video(
     genera un avatar (SadTalker, con el mismo guion) y se monta encima
     del video ya doblado — nunca se reusa el avatar que el proyecto ya
     tenga configurado, porque podría estar sincronizado con otro guion."""
-    from packages.avatar import sadtalker_runner
+    from packages.avatar import avatar_engine
     from apps.worker.app.runner import create_dub_video_job
 
     project = services.projects.get_project(db_path, project_id)
@@ -310,8 +311,10 @@ async def dub_video(
         raise HTTPException(400, "este proyecto todavía no tiene ningún video subido")
     if not script.strip():
         raise HTTPException(400, "falta el guion")
-    if avatar_image and not sadtalker_runner.is_installed():
-        raise HTTPException(503, "SadTalker no está instalado en este servidor — ver vendor/SADTALKER_SETUP.md")
+    if avatar_image:
+        engine = avatar_engine(settings.avatar_engine)
+        if not engine.is_installed():
+            raise HTTPException(503, f"El motor de avatar ({engine.ENGINE_NAME}) no está instalado en este servidor — ver {engine.SETUP_DOC}")
 
     image_dest_str = None
     if avatar_image:

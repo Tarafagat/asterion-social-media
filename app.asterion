@@ -59,6 +59,7 @@ Contract.config(key="CONTENT_VIDEO_TYPE", label="Tipo de video (programming/talk
 Contract.config(key="EDIT_FORMATS", label="Formatos de salida, separados por comas (vertical,horizontal,square)", type="string", required=false, default="vertical")
 Contract.config(key="EDIT_SUBTITLE_STYLE", label="Estilo de subtítulos (ver presets/)", type="string", required=false, default="shorts")
 Contract.config(key="EDIT_PAUSE_HANDLING", label="Tratamiento de pausas (keep/trim/tighten)", type="string", required=false, default="trim")
+Contract.config(key="AVATAR_ENGINE", label="Motor del avatar: wav2lip (rápido en CPU, solo labios) o sadtalker (anima la cabeza, lento en CPU)", type="string", required=false, default="wav2lip")
 
 # --- Límites ---
 Contract.config(key="LIMIT_BUDGET_USD", label="Presupuesto máximo por proyecto, en USD", type="number", required=false, default="0")

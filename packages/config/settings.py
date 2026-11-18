@@ -43,6 +43,12 @@ class Settings(BaseSettings):
     edit_subtitle_style: str = "shorts"
     edit_pause_handling: str = "trim"
 
+    # Motor para animar el avatar (packages/avatar): "wav2lip" (rápido en
+    # CPU, solo labios) o "sadtalker" (anima la cabeza, mucho más lento en
+    # CPU). Cada uno se instala aparte — ver vendor/WAV2LIP_SETUP.md y
+    # vendor/SADTALKER_SETUP.md.
+    avatar_engine: str = "wav2lip"
+
     # --- Límites ---
     limit_budget_usd: float = 0.0
     limit_max_retries: int = 2
