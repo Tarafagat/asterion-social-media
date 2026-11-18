@@ -18,8 +18,10 @@ from pathlib import Path
 class FFmpegNotFoundError(RuntimeError):
     def __init__(self, binary: str) -> None:
         super().__init__(
-            f"no encontré '{binary}' en el PATH — instalalo (en macOS, "
-            f"'brew install ffmpeg') antes de usar este plugin. Ninguna "
+            f"no encontré '{binary}' en el PATH — instálalo antes de usar este "
+            f"plugin (ffprobe viene en el mismo paquete que ffmpeg): en "
+            f"Debian/Ubuntu 'sudo apt install ffmpeg', en RHEL/Fedora "
+            f"'sudo dnf install ffmpeg', en macOS 'brew install ffmpeg'. Ninguna "
             f"etapa de video/audio puede avanzar sin él."
         )
 
