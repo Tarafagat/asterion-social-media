@@ -19,6 +19,12 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     headers: { ...(init?.body && !(init.body instanceof FormData) ? { "Content-Type": "application/json" } : {}), ...init?.headers },
   });
   if (!res.ok) {
+    // Un 401 en cualquier ruta protegida (no en el propio login) = la
+    // sesión venció o no hay: avisar a la app para que muestre el login de
+    // nuevo, en vez de dejar errores sueltos por la pantalla.
+    if (res.status === 401 && !path.startsWith("/auth/")) {
+      window.dispatchEvent(new Event("sc-unauthorized"));
+    }
     const detail = await res.json().catch(() => ({ detail: res.statusText }));
     throw new ApiError(res.status, detail.detail ?? res.statusText);
   }
@@ -94,6 +100,22 @@ export interface SettingsOut {
   content: SettingsField[];
   editing: SettingsField[];
   limits: SettingsField[];
+}
+
+export interface AuthState {
+  enabled: boolean;
+  authenticated: boolean;
+  username: string | null;
+}
+
+export interface StorageInfo {
+  disk_total_bytes: number;
+  disk_used_bytes: number;
+  disk_free_bytes: number;
+  data_used_bytes: number;
+  project_count: number;
+  limit_max_storage_gb: number;
+  data_dir: string;
 }
 
 export const api = {
@@ -185,4 +207,13 @@ export const api = {
   },
 
   getSettings: () => request<SettingsOut>("/settings"),
+
+  getStorage: () => request<StorageInfo>("/storage"),
+
+  auth: {
+    me: () => request<AuthState>("/auth/me"),
+    login: (username: string, password: string) =>
+      request<AuthState>("/auth/login", { method: "POST", body: JSON.stringify({ username, password }) }),
+    logout: () => request<{ ok: boolean }>("/auth/logout", { method: "POST" }),
+  },
 };

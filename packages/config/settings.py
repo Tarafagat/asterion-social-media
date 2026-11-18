@@ -48,6 +48,14 @@ class Settings(BaseSettings):
     limit_max_retries: int = 2
     limit_max_storage_gb: float = 20.0
 
+    # --- Acceso (login para entrar al editor) ---
+    # Si admin_password queda vacío, NO hay login: el editor está abierto a
+    # quien llegue al puerto (como venía). En cuanto se configura una clave,
+    # la UI y la API quedan detrás de un login con este usuario+clave (ver
+    # apps/api/app/auth.py). Asterion cifra la clave en reposo (type=secret).
+    admin_username: str = "admin"
+    admin_password: str = ""
+
     # --- Dónde viven los datos de cada proyecto ---
     data_dir: str = ""  # vacío = resuelto por data_dir_path() a <ASTERION_PLUGIN_DIR>/data
 

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import shutil
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, Form, HTTPException, UploadFile
@@ -44,8 +45,20 @@ def get_project(project_id: str, db_path: Path = Depends(get_db_path)):
 
 
 @router.delete("/{project_id}", status_code=204)
-def delete_project(project_id: str, db_path: Path = Depends(get_db_path)):
+def delete_project(
+    project_id: str,
+    db_path: Path = Depends(get_db_path),
+    settings: Settings = Depends(get_settings_dep),
+):
+    # Borra la fila del proyecto (y en cascada sus jobs/clips — ver el
+    # ON DELETE CASCADE en packages/storage/db.py) Y su carpeta de datos en
+    # disco (video fuente, audio, exports, previews…). Sin borrar los
+    # archivos, el .mov fuente seguiría ocupando disco aunque el proyecto ya
+    # no exista — justamente lo que hay que liberar al borrar.
     services.projects.delete_project(db_path, project_id)
+    layout = ProjectLayout(settings.data_dir_path(), project_id)
+    if layout.root.exists():
+        shutil.rmtree(layout.root, ignore_errors=True)
 
 
 @router.post("/{project_id}/source", response_model=ProjectOut)

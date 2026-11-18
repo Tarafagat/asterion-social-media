@@ -16,6 +16,13 @@ start:
 port: 6767
 health_path: /health
 config_schema:
+    - key: ADMIN_USERNAME
+      label: Usuario para entrar al editor
+      type: string
+      default: admin
+    - key: ADMIN_PASSWORD
+      label: Clave para entrar al editor (vacío = sin login, abierto a quien llegue)
+      type: secret
     - key: PROVIDER_BASE_URL
       label: URL del proveedor de IA
       type: string

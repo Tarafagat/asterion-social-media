@@ -36,6 +36,14 @@ Contract.api(base_path="/api/v1")
 # plugin, no una garantía que se esté fingiendo.
 Contract.permissions(network=["*"], filesystem=["./data"], secrets=true)
 
+# --- Acceso: usuario y clave para entrar al editor ---
+# Si ADMIN_PASSWORD queda vacío, el editor queda ABIERTO a quien llegue al
+# puerto (como venía). Al poner una clave, la UI y la API quedan detrás de
+# un login con este usuario+clave (ver apps/api/app/auth.py). Asterion
+# cifra la clave en reposo (type=secret).
+Contract.config(key="ADMIN_USERNAME", label="Usuario para entrar al editor", type="string", required=false, default="admin")
+Contract.config(key="ADMIN_PASSWORD", label="Clave para entrar al editor (vacío = sin login, abierto a quien llegue)", type="secret", required=false)
+
 # --- Proveedor de IA (packages/ai) ---
 Contract.config(key="PROVIDER_BASE_URL", label="URL del proveedor de IA", type="string", required=false, default="http://127.0.0.1:11434/v1")
 Contract.config(key="PROVIDER_MODEL", label="Modelo", type="string", required=false, default="llama3.1")

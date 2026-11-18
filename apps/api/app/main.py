@@ -11,14 +11,15 @@ import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from packages.config import get_settings
 from packages.storage import init_db
 
-from .routes import clips, jobs, projects, settings_routes
+from .auth import COOKIE_NAME, auth_enabled, verify_token
+from .routes import auth, clips, jobs, projects, settings_routes, system
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 logger = logging.getLogger("api")
@@ -57,16 +58,38 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="Asterion Social Clips", lifespan=lifespan)
 
 
+@app.middleware("http")
+async def require_login(request: Request, call_next):
+    """Si hay una clave configurada (ADMIN_PASSWORD), toda la API queda
+    detrás del login — salvo las propias rutas de login (/api/v1/auth/*) y
+    el /health que chequea Asterion. Sin clave configurada, no filtra nada
+    (todo abierto, como antes). El SPA (/, /assets) siempre carga para que
+    la pantalla de login pueda mostrarse."""
+    settings = getattr(request.app.state, "settings", None)
+    path = request.url.path
+    if (
+        settings is not None
+        and auth_enabled(settings)
+        and path.startswith("/api/v1/")
+        and not path.startswith("/api/v1/auth/")
+    ):
+        if verify_token(request.cookies.get(COOKIE_NAME), settings) is None:
+            return JSONResponse({"detail": "No autorizado — inicia sesión."}, status_code=401)
+    return await call_next(request)
+
+
 @app.get("/health")
 def health():
     return JSONResponse({"status": "healthy"})
 
 
 api_v1 = "/api/v1"
+app.include_router(auth.router, prefix=api_v1)
 app.include_router(projects.router, prefix=api_v1)
 app.include_router(jobs.router, prefix=api_v1)
 app.include_router(clips.router, prefix=api_v1)
 app.include_router(settings_routes.router, prefix=api_v1)
+app.include_router(system.router, prefix=api_v1)
 
 
 if FRONTEND_DIST.is_dir():
