@@ -45,15 +45,14 @@ venv/bin/pip install --upgrade pip setuptools wheel cython
 # (baja las ruedas CUDA que correspondan al driver instalado).
 venv/bin/pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
 
-# basicsr se compila de un sdist y hace `import torch` en su setup.py. Con
-# aislamiento de build (lo normal) pip arma un entorno nuevo y, en Linux,
-# baja el torch de CUDA (~888MB + varios GB de libs nvidia-*) SOLO para
-# compilarlo — y eso LLENA EL DISCO. Con --no-build-isolation reutiliza el
-# torch CPU que ya está en el venv, sin bajar nada de CUDA. (En macOS no
-# pasa: el torch de PyPI para macOS ya es CPU.)
-venv/bin/pip install basicsr==1.4.2 --no-build-isolation
-
-venv/bin/pip install -r requirements.txt
+# IMPORTANTE (Linux): basicsr, facexlib y gfpgan se compilan de sdist e
+# importan torch en su setup.py. Con aislamiento de build (lo normal) pip
+# arma un entorno nuevo y baja el torch de CUDA (~888MB + VARIOS GB de libs
+# nvidia-*) SOLO para compilarlos, LLENANDO EL DISCO ("No space left on
+# device"). Con --no-build-isolation reutilizan el torch CPU ya instalado
+# en el venv y no se baja nada de CUDA. (En macOS no pasa: el torch de PyPI
+# para macOS ya es CPU, por eso el script de macOS no necesita esto.)
+venv/bin/pip install -r requirements.txt --no-build-isolation
 venv/bin/pip install dlib
 
 echo "== 5/7: parche de compatibilidad (torchvision >=0.17 borró functional_tensor) =="
