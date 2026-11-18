@@ -23,12 +23,14 @@ equivalente:
 bash vendor/setup_sadtalker_linux.sh
 ```
 
-Hace exactamente lo mismo, pero con `apt` en vez de Homebrew, Python 3.9
-del PPA deadsnakes (en Ubuntu) y PyTorch para CPU por defecto (el script
-trae la nota para cambiarlo a GPU NVIDIA). En Debian u otra distro,
-instala Python 3.9 con pyenv antes de correrlo. Requiere `sudo`, ~3GB de
-descarga y, en CPU, varios minutos por video. Al terminar, reinicia el
-plugin: `asterion plugin restart social-clips`.
+Hace exactamente lo mismo, pero con `apt` en vez de Homebrew. Para el
+Python 3.9 usa **uv** (baja un 3.9 ya compilado, sin compilar nada ni
+tocar el Python del sistema), así funciona igual en Debian —que ya trae
+3.13— que en Ubuntu, sin depender del PPA deadsnakes (solo de Ubuntu).
+PyTorch se instala para CPU por defecto; el script trae la nota para
+cambiarlo a GPU NVIDIA. Requiere `sudo`, ~3GB de descarga y, en CPU,
+varios minutos por video. Al terminar, reinicia el plugin:
+`asterion plugin restart social-clips`.
 
 ## Qué hace el script
 

@@ -1,43 +1,44 @@
 #!/usr/bin/env bash
-# Instala SadTalker aislado en LINUX (Debian/Ubuntu) — equivalente a
-# setup_sadtalker.sh, que es para macOS/Homebrew. Clon + venv Python 3.9
+# Instala SadTalker aislado en LINUX (Debian, Ubuntu y otras) — equivalente
+# a setup_sadtalker.sh, que es para macOS/Homebrew. Clon + venv Python 3.9
 # propio + checkpoints bajo vendor/SadTalker/, sin mezclarse NUNCA con el
 # venv del plugin (apps/api/venv).
 #
-# Requiere: Debian/Ubuntu con sudo, ~3GB de descarga y bastante tiempo
-# (dlib se compila; en CPU el primer render tarda varios minutos). Instala
-# PyTorch para CPU por defecto — si la instancia tiene GPU NVIDIA, ver la
-# nota del paso 3.
+# Python 3.9 se obtiene con uv (https://astral.sh/uv): baja un Python 3.9
+# YA COMPILADO, sin compilar nada ni tocar el Python del sistema. Así
+# funciona igual en Debian (que ya trae 3.13) que en Ubuntu, sin depender
+# del PPA deadsnakes (que solo existe en Ubuntu).
+#
+# Requiere: Linux con apt y sudo, ~3GB de descarga y bastante tiempo (dlib
+# se compila; en CPU el primer render tarda varios minutos). Instala
+# PyTorch para CPU por defecto — con GPU NVIDIA, ver la nota del paso 4.
 #
 # Uso:  bash vendor/setup_sadtalker_linux.sh
 set -euo pipefail
 cd "$(dirname "$0")"
 
-echo "== 1/6: dependencias del sistema (apt) =="
+echo "== 1/7: dependencias del sistema (apt) =="
 sudo apt-get update
-sudo apt-get install -y git wget unzip cmake build-essential \
-    libgl1 libglib2.0-0 ffmpeg software-properties-common
+# build-essential + cmake -> compilar dlib ; libgl1 + libglib2.0-0 -> lo
+# que pide opencv en tiempo de ejecución ; ffmpeg lo usa SadTalker.
+sudo apt-get install -y git wget curl unzip cmake build-essential ffmpeg \
+    libgl1 libglib2.0-0
 
-# Python 3.9: SadTalker fija dependencias viejas que piden 3.9. En Ubuntu
-# sale del PPA deadsnakes; en Debian u otra distro, instala Python 3.9 con
-# pyenv (https://github.com/pyenv/pyenv) y vuelve a ejecutar este script.
-if ! command -v python3.9 >/dev/null 2>&1; then
-  echo "   python3.9 no está — probando con el PPA deadsnakes (Ubuntu)..."
-  sudo add-apt-repository -y ppa:deadsnakes/ppa
-  sudo apt-get update
-  sudo apt-get install -y python3.9 python3.9-venv python3.9-dev
+echo "== 2/7: Python 3.9 ya compilado (vía uv) =="
+# SadTalker fija dependencias viejas que piden Python 3.9; las distros
+# actuales traen 3.12/3.13. uv baja un 3.9 standalone, sin compilar.
+if ! command -v uv >/dev/null 2>&1; then
+  curl -LsSf https://astral.sh/uv/install.sh | sh
 fi
-command -v python3.9 >/dev/null 2>&1 || {
-  echo "ERROR: no se pudo instalar python3.9. En Debian, instálalo con pyenv y vuelve a ejecutar este script."
-  exit 1
-}
+export PATH="$HOME/.local/bin:$PATH"
+uv python install 3.9
 
-echo "== 2/6: clonando SadTalker =="
+echo "== 3/7: clonando SadTalker =="
 [ -d SadTalker ] || git clone --depth 1 https://github.com/OpenTalker/SadTalker.git
 cd SadTalker
 
-echo "== 3/6: venv Python 3.9 + PyTorch (CPU por defecto) =="
-[ -d venv ] || python3.9 -m venv venv
+echo "== 4/7: venv Python 3.9 + PyTorch (CPU por defecto) =="
+[ -d venv ] || uv venv --seed --python 3.9 venv
 venv/bin/pip install --upgrade pip
 # CPU por defecto. Con GPU NVIDIA, reemplaza la línea siguiente por:
 #   venv/bin/pip install torch torchvision torchaudio
@@ -46,7 +47,7 @@ venv/bin/pip install torch torchvision torchaudio --index-url https://download.p
 venv/bin/pip install -r requirements.txt
 venv/bin/pip install dlib
 
-echo "== 4/6: parche de compatibilidad (torchvision >=0.17 borró functional_tensor) =="
+echo "== 5/7: parche de compatibilidad (torchvision >=0.17 borró functional_tensor) =="
 # basicsr==1.4.2 (dependencia de gfpgan, que SadTalker importa siempre al
 # arrancar aunque no se pida --enhancer) todavía usa
 # torchvision.transforms.functional_tensor.rgb_to_grayscale, borrado en
@@ -55,10 +56,10 @@ echo "== 4/6: parche de compatibilidad (torchvision >=0.17 borró functional_ten
 SHIM="venv/lib/python3.9/site-packages/torchvision/transforms/functional_tensor.py"
 [ -f "$SHIM" ] || echo "from torchvision.transforms.functional import rgb_to_grayscale  # noqa: F401" > "$SHIM"
 
-echo "== 5/6: checkpoints principales (script oficial) =="
+echo "== 6/7: checkpoints principales (script oficial) =="
 bash scripts/download_models.sh
 
-echo "== 6/6: BFM_Fitting (no está en el script oficial — link del release v0.0.2) =="
+echo "== 7/7: BFM_Fitting (no está en el script oficial — link del release v0.0.2) =="
 if [ ! -d checkpoints/BFM_Fitting ]; then
   wget -nc https://github.com/OpenTalker/SadTalker/releases/download/v0.0.2/BFM_Fitting.zip -O checkpoints/BFM_Fitting.zip
   unzip -n checkpoints/BFM_Fitting.zip -d checkpoints/
