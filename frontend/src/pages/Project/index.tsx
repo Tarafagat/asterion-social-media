@@ -5,6 +5,20 @@ import { api } from "../../api/client";
 import JobProgress from "../../components/JobProgress";
 import ClipGallery from "../../components/ClipGallery";
 
+// Estima cuánto durará la narración de un guion leído por la voz (Piper).
+// ~150 palabras por minuto = 2.5 palabras/seg, un ritmo típico de narración
+// en español. Es un ESTIMADO para cuadrar el guion con el largo del video;
+// la duración real la fija Piper al generarla.
+const PALABRAS_POR_SEGUNDO = 2.5;
+
+function estimarNarracion(texto: string): { secs: number; palabras: number; mmss: string } {
+  const palabras = texto.trim() ? texto.trim().split(/\s+/).length : 0;
+  const secs = Math.round(palabras / PALABRAS_POR_SEGUNDO);
+  const mm = Math.floor(secs / 60);
+  const ss = secs % 60;
+  return { secs, palabras, mmss: `${mm}:${String(ss).padStart(2, "0")}` };
+}
+
 export default function ProjectPage() {
   const { id } = useParams<{ id: string }>();
   const projectId = id!;
@@ -225,6 +239,17 @@ export default function ProjectPage() {
                 style={{ width: "100%", resize: "vertical" }}
                 placeholder="Hola, bienvenidos a este video..."
               />
+              {(() => {
+                const n = estimarNarracion(dubScript);
+                return (
+                  <p style={{ fontSize: "0.82rem", color: "rgba(255,255,255,0.55)", margin: "0.45rem 0 0" }}>
+                    Duración estimada de la narración:{" "}
+                    <strong style={{ color: "var(--color-asterion-gold-light)" }}>≈ {n.secs} s</strong>{" "}
+                    ({n.mmss} min) · {n.palabras} palabra(s)
+                    {project.duration_s ? ` · video: ${Math.round(project.duration_s)} s (${Math.floor(project.duration_s / 60)}:${String(Math.round(project.duration_s) % 60).padStart(2, "0")} min)` : ""}
+                  </p>
+                );
+              })()}
               <label style={{ display: "block", fontSize: "0.8rem", color: "rgba(255,255,255,0.5)", marginTop: "0.6rem" }}>
                 Voz
                 <select
