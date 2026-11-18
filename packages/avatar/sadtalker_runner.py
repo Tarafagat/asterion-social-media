@@ -16,9 +16,18 @@ limpio — ver vendor/SADTALKER_SETUP.md para los pasos completos:
    BFM_Fitting.zip del release v0.0.2 aparte.
 
 Esta máquina no tiene GPU NVIDIA y el propio inference.py de SadTalker
-solo sabe detectar CUDA (nunca MPS) — corre 100% por CPU. Verificado en
-vivo: un audio de ~8s tardó ~34 minutos reales. El timeout por default
-de acá sale generoso (1h) a propósito por eso mismo.
+solo sabe detectar CUDA (nunca MPS) — corre 100% por CPU, que es lento
+de por sí para animar una cara. El timeout por default de acá sale
+generoso (1h) a propósito por eso mismo.
+
+Para CPU el default es `--preprocess crop` (no `full`): 'full' anima la
+cara y la re-incrusta en la imagen COMPLETA cuadro por cuadro (un
+seamlessClone sobre toda la imagen por frame, carísimo en CPU), mientras
+que 'crop' procesa solo el recuadro de la cara (256×256) y devuelve ese
+recorte — que es justo lo que se necesita para un avatar que después se
+compone como burbuja/fondo (ver packages/media/render.py). En CPU 'crop'
+es varias veces más rápido que 'full'. (Para verdadera velocidad hace
+falta una GPU NVIDIA, o un modelo más liviano como Wav2Lip.)
 """
 
 from __future__ import annotations
@@ -101,7 +110,7 @@ def generate_talking_head(
     out_video: Path,
     *,
     still: bool = True,
-    preprocess: str = "full",
+    preprocess: str = "crop",  # CPU: 'crop' es varias veces más rápido que 'full' (ver docstring)
     size: int = 256,
     enhancer: str | None = None,
     timeout: float = 3600.0,
