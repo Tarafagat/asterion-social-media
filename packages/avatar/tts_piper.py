@@ -16,6 +16,7 @@ típico esperado para cada caso."""
 from __future__ import annotations
 
 import shutil
+import sys
 import tempfile
 import wave
 from dataclasses import dataclass
@@ -84,8 +85,8 @@ def _load_model(model_id: str) -> PiperVoice:
     model_path = VOICES_DIR / f"{model_id}.onnx"
     if not model_path.exists():
         raise VoiceNotFoundError(
-            f"el modelo de voz {model_id!r} no está descargado — "
-            f"'python -m piper.download_voices {model_id} --data-dir {VOICES_DIR}'"
+            f"el modelo de voz {model_id!r} no está descargado — descárgalo con: "
+            f"{sys.executable} -m piper.download_voices {model_id} --data-dir {VOICES_DIR}"
         )
     return PiperVoice.load(str(model_path), espeak_data_dir=str(_short_espeak_data_dir()))
 
