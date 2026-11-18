@@ -17,8 +17,8 @@ else 'cpu'`), así que en una máquina sin GPU corre por CPU sin configurar nada
 
 from __future__ import annotations
 
+import os
 import re
-import shutil
 import subprocess
 import time
 from pathlib import Path
@@ -90,6 +90,7 @@ def generate_talking_head(
     audio_path: Path,
     out_video: Path,
     *,
+    fps: int = 20,
     timeout: float = 3600.0,
     on_progress: Callable[[int], None] | None = None,
     on_process_start: Callable[[subprocess.Popen], None] | None = None,
@@ -114,11 +115,25 @@ def generate_talking_head(
         "--face", str(image_path.resolve()),
         "--audio", str(audio_path.resolve()),
         "--outfile", str(out_video.resolve()),
+        # Menos cuadros = menos pasadas de la red = más rápido en CPU. 20fps
+        # (vs los 25 por default) casi no se nota en una cara chica montada
+        # sobre el clip, y recorta ~20% del tiempo. Solo aplica con una
+        # imagen estática como --face (nuestro caso).
+        "--fps", str(fps),
     ]
+
+    # Usar TODOS los vCPU para la inferencia por CPU: torch a veces arranca
+    # con pocos hilos (los núcleos "físicos"), dejando vCPUs ociosos. No pisa
+    # un valor que ya venga del entorno.
+    env = dict(os.environ)
+    cores = str(os.cpu_count() or 1)
+    env.setdefault("OMP_NUM_THREADS", cores)
+    env.setdefault("MKL_NUM_THREADS", cores)
 
     start = time.monotonic()
     proc = subprocess.Popen(
-        args, cwd=WAV2LIP_DIR, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1,
+        args, cwd=WAV2LIP_DIR, env=env,
+        stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1,
     )
     if on_process_start:
         # Para poder cancelar la corrida desde afuera (apps/worker/app/
