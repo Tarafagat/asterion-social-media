@@ -10,12 +10,6 @@ export default function ProjectPage() {
   const projectId = id!;
   const qc = useQueryClient();
   const [file, setFile] = useState<File | null>(null);
-  const [avatarFile, setAvatarFile] = useState<File | null>(null);
-  const [showAvatarIA, setShowAvatarIA] = useState(false);
-  const [avatarImage, setAvatarImage] = useState<File | null>(null);
-  const [avatarScript, setAvatarScript] = useState("");
-  const [avatarAudio, setAvatarAudio] = useState<File | null>(null);
-  const [avatarVoiceId, setAvatarVoiceId] = useState("es-femenina");
   const [showDub, setShowDub] = useState(false);
   const [dubScript, setDubScript] = useState("");
   const [dubVoiceId, setDubVoiceId] = useState("es-femenina");
@@ -44,8 +38,8 @@ export default function ProjectPage() {
 
   const { data: project } = useQuery({
     // Incluye latestJob?.status para que termine refrescando el proyecto
-    // cuando un job de avatar_generate pasa a "done" — ahí es cuando
-    // project.avatar_path/has_avatar cambia del lado del servidor.
+    // cuando un job de doblaje pasa a "done" — ahí es cuando
+    // project.has_dubbed_video cambia del lado del servidor.
     queryKey: ["project", projectId, latestJob?.status],
     queryFn: () => api.getProject(projectId),
   });
@@ -57,7 +51,7 @@ export default function ProjectPage() {
 
   const { data: transcript } = useQuery({
     // Igual truco que "project": reacciona cuando un job 'transcribe_only'
-    // (o 'Crear clips', que también transcribe) pasa a "done".
+    // pasa a "done".
     queryKey: ["transcript", projectId, latestJob?.status],
     queryFn: () => api.getTranscript(projectId),
   });
@@ -71,34 +65,6 @@ export default function ProjectPage() {
   const extractTranscriptMutation = useMutation({
     mutationFn: () => api.extractTranscript(projectId),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["jobs", projectId] }),
-  });
-
-  const uploadAvatarMutation = useMutation({
-    mutationFn: (f: File) => api.uploadAvatar(projectId, f),
-    onSuccess: () => {
-      setAvatarFile(null);
-      qc.invalidateQueries({ queryKey: ["project", projectId] });
-    },
-  });
-  const deleteAvatarMutation = useMutation({
-    mutationFn: () => api.deleteAvatar(projectId),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["project", projectId] }),
-  });
-  const avatarModeMutation = useMutation({
-    mutationFn: (mode: "pip" | "background") => api.setAvatarMode(projectId, mode),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["project", projectId] }),
-  });
-
-  const generateAvatarMutation = useMutation({
-    mutationFn: () =>
-      api.generateAvatar(projectId, avatarImage!, avatarScript, avatarVoiceId, avatarAudio ?? undefined),
-    onSuccess: () => {
-      setShowAvatarIA(false);
-      setAvatarImage(null);
-      setAvatarScript("");
-      setAvatarAudio(null);
-      qc.invalidateQueries({ queryKey: ["jobs", projectId] });
-    },
   });
 
   const cancelJobMutation = useMutation({
@@ -136,7 +102,7 @@ export default function ProjectPage() {
 
       {!project.source_filename && (
         <div className="card" style={{ marginBottom: "1.5rem" }}>
-          <p style={{ marginTop: 0 }}>Subí el video fuente para empezar.</p>
+          <p style={{ marginTop: 0 }}>Sube el video fuente para empezar.</p>
           <input type="file" accept="video/*" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
           <div style={{ marginTop: "0.8rem" }}>
             <button
@@ -170,7 +136,7 @@ export default function ProjectPage() {
         <div className="card" style={{ marginBottom: "1.5rem" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "0.75rem" }}>
             <span style={{ color: "rgba(255,255,255,0.7)" }}>
-              {transcript ? "Texto extraído del video" : "Extraé el texto hablado del video para copiarlo y armar un guion"}
+              {transcript ? "Texto extraído del video" : "Extrae el texto hablado del video para copiarlo y armar un guion"}
             </span>
             <button
               className="btn-outline"
@@ -213,15 +179,6 @@ export default function ProjectPage() {
                   }}
                 >
                   Usar en "Procesar video completo"
-                </button>
-                <button
-                  className="btn-outline"
-                  onClick={() => {
-                    setAvatarScript(transcript.text);
-                    setShowAvatarIA(true);
-                  }}
-                >
-                  Usar en "Avatar IA"
                 </button>
               </div>
             </div>
@@ -321,116 +278,6 @@ export default function ProjectPage() {
               {dubVideoMutation.isError && (
                 <p style={{ color: "var(--color-danger)", fontSize: "0.85rem", marginTop: "0.5rem" }}>
                   {(dubVideoMutation.error as Error).message}
-                </p>
-              )}
-            </div>
-          )}
-        </div>
-      )}
-
-      {project.source_filename && (
-        <div className="card" style={{ marginBottom: "1.5rem" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "0.75rem" }}>
-            <span style={{ color: "rgba(255,255,255,0.7)" }}>
-              {project.has_avatar
-                ? `Avatar configurado (modo: ${project.avatar_mode === "background" ? "de fondo" : "burbuja"})`
-                : "Sin avatar — opcional, un video grabado (sin IA) que se monta sobre los clips"}
-            </span>
-            {project.has_avatar ? (
-              <div style={{ display: "flex", gap: "0.6rem", alignItems: "center" }}>
-                <select
-                  className="input-field"
-                  value={project.avatar_mode}
-                  onChange={(e) => avatarModeMutation.mutate(e.target.value as "pip" | "background")}
-                  style={{ width: "auto" }}
-                >
-                  <option value="pip">Burbuja (esquina)</option>
-                  <option value="background">De fondo</option>
-                </select>
-                <button className="btn-outline" onClick={() => deleteAvatarMutation.mutate()}>
-                  Quitar avatar
-                </button>
-              </div>
-            ) : (
-              <div style={{ display: "flex", gap: "0.6rem", alignItems: "center", flexWrap: "wrap" }}>
-                <button className="btn-gold" onClick={() => setShowAvatarIA((v) => !v)}>
-                  {showAvatarIA ? "Cancelar" : "Generar desde una foto (IA)"}
-                </button>
-                <span style={{ color: "rgba(255,255,255,0.3)", fontSize: "0.8rem" }}>o</span>
-                <input type="file" accept="video/*" onChange={(e) => setAvatarFile(e.target.files?.[0] ?? null)} />
-                <button
-                  className="btn-outline"
-                  disabled={!avatarFile || uploadAvatarMutation.isPending}
-                  onClick={() => avatarFile && uploadAvatarMutation.mutate(avatarFile)}
-                >
-                  {uploadAvatarMutation.isPending ? "Subiendo…" : "Subir video ya grabado"}
-                </button>
-              </div>
-            )}
-          </div>
-          <p style={{ fontSize: "0.8rem", color: "rgba(255,255,255,0.4)", marginTop: "0.6rem", marginBottom: 0 }}>
-            "Subir video ya grabado" es un video tal cual, sin animar (se activa por clip desde "Editar"). "Generar
-            desde una foto" pide una imagen y la anima con IA (abajo).
-          </p>
-
-          {showAvatarIA && !project.has_avatar && (
-            <div style={{ marginTop: "1rem", paddingTop: "1rem", borderTop: "1px solid rgba(255,255,255,0.08)" }}>
-              <p style={{ fontSize: "0.85rem", color: "rgba(255,255,255,0.6)", marginTop: 0 }}>
-                Una foto del presentador + un guion (se convierte a voz en español automáticamente) o un audio
-                propio — SadTalker anima la foto con ese audio. Tarda bastante (varios minutos por CPU).
-              </p>
-              <label style={{ display: "block", fontSize: "0.8rem", color: "rgba(255,255,255,0.5)", marginBottom: "0.8rem" }}>
-                Foto del presentador (imagen, no video)
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => setAvatarImage(e.target.files?.[0] ?? null)}
-                  style={{ display: "block", marginTop: "0.3rem" }}
-                />
-              </label>
-              <label style={{ display: "block", fontSize: "0.8rem", color: "rgba(255,255,255,0.5)", marginBottom: "0.8rem" }}>
-                Guion (se lee con voz en español) — opcional si subís un audio propio
-                <textarea
-                  className="input-field"
-                  value={avatarScript}
-                  onChange={(e) => setAvatarScript(e.target.value)}
-                  rows={3}
-                  style={{ width: "100%", marginTop: "0.3rem", resize: "vertical" }}
-                  placeholder="Hola, bienvenidos a este video..."
-                />
-              </label>
-              <label style={{ display: "block", fontSize: "0.8rem", color: "rgba(255,255,255,0.5)", marginBottom: "0.8rem" }}>
-                Voz
-                <select
-                  className="input-field"
-                  value={avatarVoiceId}
-                  onChange={(e) => setAvatarVoiceId(e.target.value)}
-                  style={{ display: "block", marginTop: "0.3rem", width: "auto" }}
-                >
-                  {voices.map((v) => (
-                    <option key={v.id} value={v.id}>{v.label}</option>
-                  ))}
-                </select>
-              </label>
-              <label style={{ display: "block", fontSize: "0.8rem", color: "rgba(255,255,255,0.5)", marginBottom: "0.8rem" }}>
-                O un audio propio (en vez del guion)
-                <input
-                  type="file"
-                  accept="audio/*"
-                  onChange={(e) => setAvatarAudio(e.target.files?.[0] ?? null)}
-                  style={{ display: "block", marginTop: "0.3rem" }}
-                />
-              </label>
-              <button
-                className="btn-gold"
-                disabled={!avatarImage || (!avatarScript.trim() && !avatarAudio) || generateAvatarMutation.isPending}
-                onClick={() => generateAvatarMutation.mutate()}
-              >
-                {generateAvatarMutation.isPending ? "Enviando…" : "Generar avatar"}
-              </button>
-              {generateAvatarMutation.isError && (
-                <p style={{ color: "var(--color-danger)", fontSize: "0.85rem", marginTop: "0.5rem" }}>
-                  {(generateAvatarMutation.error as Error).message}
                 </p>
               )}
             </div>
