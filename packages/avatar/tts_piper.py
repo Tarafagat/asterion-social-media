@@ -64,16 +64,35 @@ class VoiceOption:
     label: str
 
 
-# Un modelo multi-hablante (es_ES-sharvard-medium, descargado con
-# `python -m piper.download_voices es_ES-sharvard-medium --data-dir
-# models/voices`) alcanza para las dos opciones — agregar una entrada
-# acá después de confirmar (con F0, no a ojo) que corresponde al género
-# que dice.
+# Cada voz es un modelo de Piper que hay que descargar aparte con
+# `python -m piper.download_voices <model_id> --data-dir models/voices`.
+# es_ES-sharvard-medium es multi-hablante (0=M, 1=F). Las de calidad
+# "high" (claude) suenan bastante MENOS robóticas que las "medium" — por
+# eso se agregan como opción para una voz más natural. `available_voices()`
+# filtra a las que ya están descargadas, así el desplegable no ofrece una
+# que daría error al generar.
 AVAILABLE_VOICES: dict[str, VoiceOption] = {
-    "es-masculina": VoiceOption("es_ES-sharvard-medium", 0, "Español — masculina"),
-    "es-femenina": VoiceOption("es_ES-sharvard-medium", 1, "Español — femenina"),
+    # Masculinas — todas calidad "medium": Piper NO tiene una masculina en
+    # español de calidad "high". Son hablantes distintos (no un salto de
+    # calidad). F0 medido en vivo: ald ~146Hz (acento neutro mexicano),
+    # dave ~121Hz (España), sharvard-M ~117Hz (España, la de antes).
+    "es-ald": VoiceOption("es_MX-ald-medium", None, "Español neutro (México) — masculina"),
+    "es-dave": VoiceOption("es_ES-davefx-medium", None, "Español (España) — masculina (Dave)"),
+    "es-masculina": VoiceOption("es_ES-sharvard-medium", 0, "Español (España) — masculina"),
+    # Femeninas — claude es calidad "high" (suena notablemente menos
+    # robótica). F0 medido ~176Hz: femenina, pese a que el nombre no lo diga.
+    "mx-claude": VoiceOption("es_MX-claude-high", None, "Español neutro (México) — femenina (alta calidad)"),
+    "es-femenina": VoiceOption("es_ES-sharvard-medium", 1, "Español (España) — femenina"),
 }
 DEFAULT_VOICE = "es-femenina"
+
+
+def available_voices() -> "dict[str, VoiceOption]":
+    """Solo las voces cuyo modelo .onnx ya está descargado en VOICES_DIR.
+    Si ninguna lo está todavía, devuelve todas (para que la UI no quede
+    vacía — al generar, el error dice exactamente cómo descargarla)."""
+    downloaded = {k: v for k, v in AVAILABLE_VOICES.items() if (VOICES_DIR / f"{v.model_id}.onnx").exists()}
+    return downloaded or AVAILABLE_VOICES
 
 
 class VoiceNotFoundError(RuntimeError):

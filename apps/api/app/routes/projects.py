@@ -33,7 +33,7 @@ def list_projects(db_path: Path = Depends(get_db_path)):
 @router.get("/avatar/voices")
 def list_avatar_voices() -> dict:
     from packages.avatar import tts_piper
-    return {"voices": [{"id": k, "label": v.label} for k, v in tts_piper.AVAILABLE_VOICES.items()]}
+    return {"voices": [{"id": k, "label": v.label} for k, v in tts_piper.available_voices().items()]}
 
 
 @router.get("/{project_id}", response_model=ProjectOut)
