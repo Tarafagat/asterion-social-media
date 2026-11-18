@@ -39,7 +39,11 @@ cd SadTalker
 
 echo "== 4/7: venv Python 3.9 + PyTorch (CPU por defecto) =="
 [ -d venv ] || uv venv --seed --python 3.9 venv
-venv/bin/pip install --upgrade pip setuptools wheel cython
+# setuptools FIJADO a <80: desde la 81 se quitó `pkg_resources`, que
+# librosa 0.9.2 (la que fija SadTalker) todavía importa. Con el setuptools
+# más nuevo, inference.py muere con "No module named 'pkg_resources'".
+venv/bin/pip install --upgrade pip wheel cython
+venv/bin/pip install "setuptools<80"
 # CPU por defecto. Con GPU NVIDIA, reemplaza la línea siguiente por:
 #   venv/bin/pip install torch torchvision torchaudio
 # (baja las ruedas CUDA que correspondan al driver instalado).
