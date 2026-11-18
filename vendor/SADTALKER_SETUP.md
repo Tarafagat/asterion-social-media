@@ -14,6 +14,22 @@ No está en git — `vendor/SadTalker/` está en `.gitignore` completo
 bash vendor/setup_sadtalker.sh
 ```
 
+## En Linux (Debian/Ubuntu) — p. ej. la instancia de Asterion
+
+El script de arriba es para macOS/Homebrew. En un servidor Linux usa el
+equivalente:
+
+```bash
+bash vendor/setup_sadtalker_linux.sh
+```
+
+Hace exactamente lo mismo, pero con `apt` en vez de Homebrew, Python 3.9
+del PPA deadsnakes (en Ubuntu) y PyTorch para CPU por defecto (el script
+trae la nota para cambiarlo a GPU NVIDIA). En Debian u otra distro,
+instala Python 3.9 con pyenv antes de correrlo. Requiere `sudo`, ~3GB de
+descarga y, en CPU, varios minutos por video. Al terminar, reinicia el
+plugin: `asterion plugin restart social-clips`.
+
 ## Qué hace el script
 
 1. Instala `python@3.9`, `wget`, `cmake` por Homebrew si faltan.
