@@ -32,6 +32,13 @@ cambiarlo a GPU NVIDIA. Requiere `sudo`, ~3GB de descarga y, en CPU,
 varios minutos por video. Al terminar, reinicia el plugin:
 `asterion plugin restart social-clips`.
 
+Un detalle de Linux: `basicsr` hace `import torch` al compilarse, así que
+el script lo instala con `--no-build-isolation` para que reutilice el
+torch CPU del venv. Sin eso, pip bajaría el PyTorch de **CUDA** (~888MB +
+varios GB de libs `nvidia-*`) solo para compilarlo, llenando el disco con
+el clásico `No space left on device`. Deja al menos **~8GB libres** antes
+de correrlo (`df -h`).
+
 ## Qué hace el script
 
 1. Instala `python@3.9`, `wget`, `cmake` por Homebrew si faltan.

@@ -39,11 +39,20 @@ cd SadTalker
 
 echo "== 4/7: venv Python 3.9 + PyTorch (CPU por defecto) =="
 [ -d venv ] || uv venv --seed --python 3.9 venv
-venv/bin/pip install --upgrade pip
+venv/bin/pip install --upgrade pip setuptools wheel cython
 # CPU por defecto. Con GPU NVIDIA, reemplaza la línea siguiente por:
 #   venv/bin/pip install torch torchvision torchaudio
 # (baja las ruedas CUDA que correspondan al driver instalado).
 venv/bin/pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
+
+# basicsr se compila de un sdist y hace `import torch` en su setup.py. Con
+# aislamiento de build (lo normal) pip arma un entorno nuevo y, en Linux,
+# baja el torch de CUDA (~888MB + varios GB de libs nvidia-*) SOLO para
+# compilarlo — y eso LLENA EL DISCO. Con --no-build-isolation reutiliza el
+# torch CPU que ya está en el venv, sin bajar nada de CUDA. (En macOS no
+# pasa: el torch de PyPI para macOS ya es CPU.)
+venv/bin/pip install basicsr==1.4.2 --no-build-isolation
+
 venv/bin/pip install -r requirements.txt
 venv/bin/pip install dlib
 
